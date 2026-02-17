@@ -122,6 +122,11 @@ func (r *ZoneRepository) AssignPath(zoneID, path string) (*domain.Zone, error) {
 	return m.ToDomain(), nil
 }
 
+// DeleteByProject deletes all zones for the given project.
+func (r *ZoneRepository) DeleteByProject(projectID string) error {
+	return r.db.Where("project_id = ?", projectID).Delete(&ZoneModel{}).Error
+}
+
 func cloneAgents(a []domain.Agent) []domain.Agent {
 	if a == nil {
 		return nil

@@ -1,31 +1,48 @@
-import { useState } from 'react'
-import type { Zone } from './api/types'
-import { useListTree } from './hooks/useListTree'
-import { useZoneHighlights } from './hooks/useZoneHighlights'
-import { useZones } from './hooks/useZones'
-import { useProjects } from './hooks/useProjects'
-import { SourceTree } from './components/SourceTree'
-import { RegexPlayground } from './components/RegexPlayground'
-import { ZoneMetadataForm, type ZoneMetadataFormProps } from './components/ZoneMetadataForm'
-import { AssignToZone } from './components/AssignToZone'
-import { ProjectSelector } from './components/ProjectSelector'
-import { ThemeSwitcher } from './components/ThemeSwitcher'
+import { useState } from "react";
+import type { Zone } from "./api/types";
+import { useListTree } from "./hooks/useListTree";
+import { useZoneHighlights } from "./hooks/useZoneHighlights";
+import { useZones } from "./hooks/useZones";
+import { useProjects } from "./hooks/useProjects";
+import { useAgents } from "./hooks/useAgents";
+import { SourceTree } from "./components/SourceTree";
+import { RegexPlayground } from "./components/RegexPlayground";
+import { ZoneMetadataForm } from "./components/ZoneMetadataForm";
+import { AssignToZone } from "./components/AssignToZone";
+import { ProjectSelector } from "./components/ProjectSelector";
+import { AgentManager } from "./components/AgentManager";
+import { ThemeSwitcher } from "./components/ThemeSwitcher";
 
 export default function App() {
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+    null,
+  );
 
   const {
     projects,
     loading: projectsLoading,
     error: projectsError,
     createProject,
+    deleteProject,
     addIgnoredPath,
     removeIgnoredPath,
-  } = useProjects()
+  } = useProjects();
 
-  const { tree, loading: treeLoading, error: treeError, refetch: refetchTree } = useListTree(
-    selectedProjectId
-  )
+  const {
+    agents,
+    loading: agentsLoading,
+    error: agentsError,
+    createAgent,
+    updateAgent,
+    deleteAgent,
+  } = useAgents();
+
+  const {
+    tree,
+    loading: treeLoading,
+    error: treeError,
+    refetch: refetchTree,
+  } = useListTree(selectedProjectId);
   const {
     highlightPaths,
     pathToZones,
@@ -33,7 +50,7 @@ export default function App() {
     loading: zonesLoading,
     error: zonesError,
     refetch: refetchZones,
-  } = useZoneHighlights(selectedProjectId)
+  } = useZoneHighlights(selectedProjectId);
   const {
     zones,
     refetch: refetchZonesList,
@@ -41,53 +58,54 @@ export default function App() {
     createZone,
     updateZone,
     assignPathToZone,
-  } = useZones(selectedProjectId)
+  } = useZones(selectedProjectId);
 
-  const [assignPath, setAssignPath] = useState<string | null>(null)
-  const [editingZoneId, setEditingZoneId] = useState<string | null>(null)
-  const [editingZone, setEditingZone] = useState<Zone | null>(null)
-  const [showNewZone, setShowNewZone] = useState(false)
+  const [assignPath, setAssignPath] = useState<string | null>(null);
+  const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
+  const [editingZone, setEditingZone] = useState<Zone | null>(null);
+  const [showNewZone, setShowNewZone] = useState(false);
 
   const handleAssignToZone = (path: string) => {
-    setAssignPath(path)
-  }
+    setAssignPath(path);
+  };
 
   const handleAssignSelect = async (zoneId: string) => {
-    if (!assignPath) return
-    await assignPathToZone(zoneId, assignPath)
-    setAssignPath(null)
-    refetchZones()
-    refetchTree()
-    refetchZonesList()
-  }
+    if (!assignPath) return;
+    await assignPathToZone(zoneId, assignPath);
+    setAssignPath(null);
+    refetchZones();
+    refetchTree();
+    refetchZonesList();
+  };
 
   const handleAssignCreateNew = () => {
-    setShowNewZone(true)
-    setAssignPath(null)
-  }
+    setShowNewZone(true);
+    setAssignPath(null);
+  };
 
   const handleZoneSaved = () => {
-    setEditingZoneId(null)
-    setEditingZone(null)
-    setShowNewZone(false)
-    refetchZones()
-    refetchZonesList()
-    refetchTree()
-  }
+    setEditingZoneId(null);
+    setEditingZone(null);
+    setShowNewZone(false);
+    refetchZones();
+    refetchZonesList();
+    refetchTree();
+  };
 
   const handleCreateZone = async (params: {
-    name: string
-    pattern?: string
-    purpose?: string
-    constraints?: string[]
-    assigned_agent?: string
+    name: string;
+    pattern?: string;
+    purpose?: string;
+    constraints?: string[];
+    assigned_agents?: { id: string; name: string }[];
   }) => {
-    if (!selectedProjectId) return null
-    return createZone({ ...params, project_id: selectedProjectId })
-  }
+    if (!selectedProjectId) return null;
+    return createZone({ ...params, project_id: selectedProjectId });
+  };
 
-  const loading = treeLoading || zonesLoading
-  const error = treeError ?? zonesError ?? projectsError
+  const loading = treeLoading || zonesLoading;
+  const error =
+    treeError ?? zonesError ?? projectsError ?? agentsError ?? undefined;
 
   return (
     <div className="min-h-screen bg-base-200 p-4 md:p-6">
@@ -105,9 +123,18 @@ export default function App() {
             selectedId={selectedProjectId}
             onSelect={setSelectedProjectId}
             onCreateProject={createProject}
+            onDeleteProject={deleteProject}
             loading={projectsLoading}
           />
         </div>
+
+        <AgentManager
+          agents={agents}
+          loading={agentsLoading}
+          onCreateAgent={createAgent}
+          onUpdateAgent={updateAgent}
+          onDeleteAgent={deleteAgent}
+        />
 
         {error && (
           <div role="alert" className="alert alert-error mt-4">
@@ -117,7 +144,8 @@ export default function App() {
 
         {!selectedProjectId && !projectsLoading && (
           <p className="mt-4 text-base-content/70">
-            Select a project above to view the source tree and zones, or create a new one.
+            Select a project above to view the source tree and zones, or create
+            a new one.
           </p>
         )}
 
@@ -126,7 +154,8 @@ export default function App() {
         )}
         {selectedProjectId && !tree && !loading && !error && (
           <p className="mt-4 text-base-content/70">
-            No project tree available. Check that the root directory exists and is readable.
+            No project tree available. Check that the root directory exists and
+            is readable.
           </p>
         )}
 
@@ -138,10 +167,23 @@ export default function App() {
                 tree={tree}
                 highlightPaths={highlightPaths}
                 pathToZones={pathToZones}
-                ignoredPaths={selectedProjectId ? (projects.find((p) => p.id === selectedProjectId)?.ignored_paths ?? []) : []}
+                ignoredPaths={
+                  selectedProjectId
+                    ? (projects.find((p) => p.id === selectedProjectId)
+                        ?.ignored_paths ?? [])
+                    : []
+                }
                 onAssignToZone={handleAssignToZone}
-                onHide={selectedProjectId ? (path) => addIgnoredPath(selectedProjectId, path) : undefined}
-                onShow={selectedProjectId ? (path) => removeIgnoredPath(selectedProjectId, path) : undefined}
+                onHide={
+                  selectedProjectId
+                    ? (path) => addIgnoredPath(selectedProjectId, path)
+                    : undefined
+                }
+                onShow={
+                  selectedProjectId
+                    ? (path) => removeIgnoredPath(selectedProjectId, path)
+                    : undefined
+                }
               />
             </div>
           </section>
@@ -153,8 +195,9 @@ export default function App() {
           <ZoneMetadataForm
             zoneId={null}
             initialZone={null}
+            agents={agents}
             onLoadZone={getZone}
-            onCreateZone={handleCreateZone as ZoneMetadataFormProps['onCreateZone']}
+            onCreateZone={handleCreateZone}
             onUpdateZone={updateZone}
             onSaved={handleZoneSaved}
           />
@@ -164,8 +207,9 @@ export default function App() {
           <ZoneMetadataForm
             zoneId={editingZoneId}
             initialZone={editingZone}
+            agents={agents}
             onLoadZone={getZone}
-            onCreateZone={handleCreateZone as ZoneMetadataFormProps['onCreateZone']}
+            onCreateZone={handleCreateZone}
             onUpdateZone={updateZone}
             onSaved={handleZoneSaved}
           />
@@ -184,7 +228,9 @@ export default function App() {
                 New zone
               </button>
               {!selectedProjectId && (
-                <span className="text-sm text-base-content/60">Select a project first</span>
+                <span className="text-sm text-base-content/60">
+                  Select a project first
+                </span>
               )}
             </div>
             <ul className="menu rounded-box bg-base-200/50 w-full max-w-md">
@@ -196,8 +242,8 @@ export default function App() {
                       type="button"
                       className="btn btn-ghost btn-sm"
                       onClick={() => {
-                        setEditingZoneId(z.id)
-                        setEditingZone(z)
+                        setEditingZoneId(z.id);
+                        setEditingZone(z);
                       }}
                     >
                       Edit
@@ -220,5 +266,5 @@ export default function App() {
         )}
       </div>
     </div>
-  )
+  );
 }

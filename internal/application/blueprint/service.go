@@ -10,6 +10,7 @@ import (
 type Service struct {
 	Projects    ports.ProjectRepository
 	Zones       ports.ZoneRepository
+	Agents      ports.AgentRepository
 	PathMatcher ports.PathMatcher
 	TreeLister  ports.TreeLister
 	DefaultRoot string
@@ -17,10 +18,11 @@ type Service struct {
 
 // NewService returns a blueprint application service with the given ports.
 // defaultRoot is used when no project_id is provided for list_tree/list_matching_paths.
-func NewService(projects ports.ProjectRepository, zones ports.ZoneRepository, pathMatcher ports.PathMatcher, treeLister ports.TreeLister, defaultRoot string) *Service {
+func NewService(projects ports.ProjectRepository, zones ports.ZoneRepository, agents ports.AgentRepository, pathMatcher ports.PathMatcher, treeLister ports.TreeLister, defaultRoot string) *Service {
 	return &Service{
 		Projects:    projects,
 		Zones:       zones,
+		Agents:      agents,
 		PathMatcher: pathMatcher,
 		TreeLister:  treeLister,
 		DefaultRoot: defaultRoot,
@@ -61,6 +63,17 @@ func (s *Service) CreateProject(name, rootDir string) (*domain.Project, error) {
 // UpdateProject updates an existing project.
 func (s *Service) UpdateProject(projectID, name, rootDir string) (*domain.Project, error) {
 	return s.Projects.Update(projectID, name, rootDir)
+}
+
+// DeleteProject deletes a project and all its zones.
+func (s *Service) DeleteProject(projectID string) error {
+	if s.Projects.Get(projectID) == nil {
+		return &domain.StructuredError{Code: "PROJECT_NOT_FOUND", Message: "project not found"}
+	}
+	if err := s.Zones.DeleteByProject(projectID); err != nil {
+		return err
+	}
+	return s.Projects.Delete(projectID)
 }
 
 // AddIgnoredPath adds a path to the project's ignored list (hidden in tree view).
@@ -116,4 +129,54 @@ func (s *Service) UpdateZone(zoneID, name, pattern, purpose string, constraints 
 // AssignPathToZone adds a path to a zone's explicit paths (path is normalized).
 func (s *Service) AssignPathToZone(zoneID, path string) (*domain.Zone, error) {
 	return s.Zones.AssignPath(zoneID, domain.NormalizePath(path))
+}
+
+// ListAgents returns all agents.
+func (s *Service) ListAgents() []*domain.Agent {
+	return s.Agents.List()
+}
+
+// GetAgent returns one agent by id, or nil if not found.
+func (s *Service) GetAgent(id string) *domain.Agent {
+	return s.Agents.Get(id)
+}
+
+// CreateAgent creates an agent with the given name, description, and prompt.
+func (s *Service) CreateAgent(name, description, prompt string) (*domain.Agent, error) {
+	return s.Agents.Create(name, description, prompt)
+}
+
+// UpdateAgent updates an existing agent.
+func (s *Service) UpdateAgent(id, name, description, prompt string) (*domain.Agent, error) {
+	return s.Agents.Update(id, name, description, prompt)
+}
+
+// DeleteAgent deletes an agent and removes it from all zones that reference it.
+func (s *Service) DeleteAgent(id string) error {
+	if s.Agents.Get(id) == nil {
+		return &domain.StructuredError{Code: "AGENT_NOT_FOUND", Message: "agent not found"}
+	}
+	for _, p := range s.Projects.List() {
+		for _, z := range s.Zones.ListByProject(p.ID) {
+			var hasAgent bool
+			for _, a := range z.AssignedAgents {
+				if a.ID == id {
+					hasAgent = true
+					break
+				}
+			}
+			if hasAgent {
+				filtered := make([]domain.Agent, 0, len(z.AssignedAgents))
+				for _, a := range z.AssignedAgents {
+					if a.ID != id {
+						filtered = append(filtered, a)
+					}
+				}
+				if _, err := s.Zones.Update(z.ID, z.Name, z.Pattern, z.Purpose, z.Constraints, filtered); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return s.Agents.Delete(id)
 }

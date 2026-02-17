@@ -2,6 +2,30 @@ package sqlite
 
 import "operators-mcp/internal/domain"
 
+// AgentModel is the GORM model for domain.Agent.
+type AgentModel struct {
+	ID          string `gorm:"primaryKey"`
+	Name        string
+	Description string
+	Prompt      string
+}
+
+// TableName overrides the table name.
+func (AgentModel) TableName() string { return "agents" }
+
+// ToDomain converts the model to a domain.Agent.
+func (m *AgentModel) ToDomain() *domain.Agent {
+	if m == nil {
+		return nil
+	}
+	return &domain.Agent{
+		ID:          m.ID,
+		Name:        m.Name,
+		Description: m.Description,
+		Prompt:      m.Prompt,
+	}
+}
+
 // ProjectModel is the GORM model for domain.Project.
 type ProjectModel struct {
 	ID           string `gorm:"primaryKey"`

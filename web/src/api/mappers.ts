@@ -3,7 +3,18 @@
  */
 
 import type { ZoneDto, AgentDto, TreeNodeDto, ProjectDto } from './dto'
-import type { Zone, TreeNode, Project } from './types'
+import type { Zone, TreeNode, Project, Agent } from './types'
+
+/** Map AgentDto to UI Agent */
+export function agentFromDto(dto: AgentDto | null | undefined): Agent | null {
+  if (dto == null) return null
+  return {
+    id: dto.id,
+    name: dto.name ?? '',
+    description: dto.description ?? '',
+    prompt: dto.prompt ?? '',
+  }
+}
 
 /** Map ProjectDto to UI Project */
 export function projectFromDto(dto: ProjectDto | null | undefined): Project | null {
@@ -16,11 +27,10 @@ export function projectFromDto(dto: ProjectDto | null | undefined): Project | nu
   }
 }
 
-/** Map ZoneDto to UI Zone (assigned_agent = first assigned agent name) */
+/** Map ZoneDto to UI Zone (assigned_agent/assigned_agent_id from first assigned agent) */
 export function zoneFromDto(dto: ZoneDto | null | undefined): Zone | null {
   if (dto == null) return null
-  const assigned_agent =
-    dto.assigned_agents?.length > 0 ? dto.assigned_agents[0].name : ''
+  const first = dto.assigned_agents?.[0]
   return {
     id: dto.id,
     project_id: dto.project_id ?? '',
@@ -28,15 +38,10 @@ export function zoneFromDto(dto: ZoneDto | null | undefined): Zone | null {
     pattern: dto.pattern ?? '',
     purpose: dto.purpose ?? '',
     constraints: dto.constraints ?? [],
-    assigned_agent,
+    assigned_agent: first?.name ?? '',
+    assigned_agent_id: first?.id ?? '',
     explicit_paths: dto.explicit_paths ?? [],
   }
-}
-
-/** Map UI Zone or create params to assigned_agents DTO array */
-export function toAssignedAgentsDto(assigned_agent?: string): AgentDto[] {
-  if (assigned_agent == null || assigned_agent.trim() === '') return []
-  return [{ id: '', name: assigned_agent.trim() }]
 }
 
 /** Map TreeNodeDto to UI TreeNode */

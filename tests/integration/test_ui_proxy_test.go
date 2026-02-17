@@ -23,7 +23,7 @@ func TestUIProxy_DevModeServesFromVite(t *testing.T) {
 	go srv.ListenAndServe()
 	t.Cleanup(func() { srv.Close() })
 
-	svc := blueprint.NewService(nil, nil, nil, nil, "")
+	svc := blueprint.NewService(nil, nil, nil, nil, nil, "")
 	baseURL, cleanup := testhelper.StartMCPServerWithDesigner(t, svc, true, nil, "http://localhost:5173")
 	defer cleanup()
 	c := testhelper.NewTestClient(t, baseURL)

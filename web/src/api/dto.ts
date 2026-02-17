@@ -3,10 +3,12 @@
  * Used for serialization and mapping to/from UI models.
  */
 
-/** Agent in zone DTO */
+/** Agent in zone DTO (and list/get/create/update agent) */
 export interface AgentDto {
   id: string
   name: string
+  description?: string
+  prompt?: string
 }
 
 /** Zone DTO (API response shape) */
@@ -87,6 +89,13 @@ export interface CreateProjectResponseDto {
   project: ProjectDto
 }
 
+/** Request: delete_project */
+export interface DeleteProjectRequestDto {
+  project_id: string
+}
+
+/** Response: delete_project (204 No Content, or error) */
+
 /** Request: add_ignored_path */
 export interface AddIgnoredPathRequestDto {
   project_id: string
@@ -158,6 +167,51 @@ export interface AssignPathToZoneRequestDto {
 /** Response: assign_path_to_zone */
 export interface AssignPathToZoneResponseDto {
   zone: ZoneDto
+}
+
+/** Response: list_agents */
+export interface ListAgentsResponseDto {
+  agents: AgentDto[]
+}
+
+/** Request: get_agent */
+export interface GetAgentRequestDto {
+  agent_id: string
+}
+
+/** Response: get_agent */
+export interface GetAgentResponseDto {
+  agent: AgentDto
+}
+
+/** Request: create_agent */
+export interface CreateAgentRequestDto {
+  name?: string
+  description?: string
+  prompt?: string
+}
+
+/** Response: create_agent */
+export interface CreateAgentResponseDto {
+  agent: AgentDto
+}
+
+/** Request: update_agent */
+export interface UpdateAgentRequestDto {
+  agent_id: string
+  name?: string
+  description?: string
+  prompt?: string
+}
+
+/** Response: update_agent */
+export interface UpdateAgentResponseDto {
+  agent: AgentDto
+}
+
+/** Request: delete_agent */
+export interface DeleteAgentRequestDto {
+  agent_id: string
 }
 
 /** API error response */

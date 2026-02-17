@@ -15,7 +15,7 @@ import (
 // mode with embedded UI (internal/adapter/in/ui/static populated from web/dist), requesting ui://designer
 // returns HTML. Populate static before running: cp -r web/dist/* internal/adapter/in/ui/static/
 func TestUIEmbed_ServerServesDesignerFromEmbed(t *testing.T) {
-	svc := blueprint.NewService(nil, nil, nil, nil, "")
+	svc := blueprint.NewService(nil, nil, nil, nil, nil, "")
 	baseURL, cleanup := testhelper.StartMCPServer(t, svc, false)
 	defer cleanup()
 	c := testhelper.NewTestClient(t, baseURL)

@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react'
+import type { Agent } from '../api/types'
 import type { Zone } from '../api/types'
 
 export interface ZoneMetadataFormProps {
   zoneId: string | null
   initialZone: Zone | null
+  /** List of agents that can be assigned to this zone */
+  agents: Agent[]
   onLoadZone: (id: string) => Promise<Zone | null>
   onCreateZone: (params: {
     name: string
     pattern?: string
     purpose?: string
     constraints?: string[]
-    assigned_agent?: string
+    assigned_agents?: { id: string; name: string }[]
   }) => Promise<Zone | null>
   onUpdateZone: (params: {
     zone_id: string
@@ -18,7 +21,7 @@ export interface ZoneMetadataFormProps {
     pattern?: string
     purpose?: string
     constraints?: string[]
-    assigned_agent?: string
+    assigned_agents?: { id: string; name: string }[]
   }) => Promise<Zone | null>
   onSaved?: () => void
 }
@@ -26,6 +29,7 @@ export interface ZoneMetadataFormProps {
 export function ZoneMetadataForm({
   zoneId,
   initialZone,
+  agents,
   onLoadZone,
   onCreateZone,
   onUpdateZone,
@@ -35,7 +39,7 @@ export function ZoneMetadataForm({
   const [pattern, setPattern] = useState('')
   const [purpose, setPurpose] = useState('')
   const [constraints, setConstraints] = useState('')
-  const [assignedAgent, setAssignedAgent] = useState('')
+  const [selectedAgentId, setSelectedAgentId] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -47,13 +51,13 @@ export function ZoneMetadataForm({
       setPattern(initialZone.pattern ?? '')
       setPurpose(initialZone.purpose ?? '')
       setConstraints((initialZone.constraints ?? []).join('\n'))
-      setAssignedAgent(initialZone.assigned_agent ?? '')
+      setSelectedAgentId(initialZone.assigned_agent_id ?? '')
     } else if (!isEdit) {
       setName('')
       setPattern('')
       setPurpose('')
       setConstraints('')
-      setAssignedAgent('')
+      setSelectedAgentId('')
     }
   }, [initialZone, isEdit])
 
@@ -65,11 +69,21 @@ export function ZoneMetadataForm({
           setPattern(z.pattern ?? '')
           setPurpose(z.purpose ?? '')
           setConstraints((z.constraints ?? []).join('\n'))
-          setAssignedAgent(z.assigned_agent ?? '')
+          setSelectedAgentId(z.assigned_agent_id ?? '')
         }
       })
     }
   }, [zoneId, initialZone, onLoadZone])
+
+  const assignedAgentsForSave =
+    selectedAgentId && agents.length > 0
+      ? [
+          {
+            id: selectedAgentId,
+            name: agents.find((a) => a.id === selectedAgentId)?.name ?? '',
+          },
+        ]
+      : []
 
   const handleSave = async () => {
     setSaving(true)
@@ -86,7 +100,7 @@ export function ZoneMetadataForm({
           pattern,
           purpose,
           constraints: constraintList,
-          assigned_agent: assignedAgent,
+          assigned_agents: assignedAgentsForSave,
         })
       } else {
         await onCreateZone({
@@ -94,7 +108,7 @@ export function ZoneMetadataForm({
           pattern,
           purpose,
           constraints: constraintList,
-          assigned_agent: assignedAgent,
+          assigned_agents: assignedAgentsForSave,
         })
       }
       onSaved?.()
@@ -164,12 +178,24 @@ export function ZoneMetadataForm({
             <div className="label">
               <span className="label-text">Assigned agent</span>
             </div>
-            <input
-              type="text"
-              value={assignedAgent}
-              onChange={(e) => setAssignedAgent(e.target.value)}
-              className="input input-bordered w-full"
-            />
+            <select
+              value={selectedAgentId}
+              onChange={(e) => setSelectedAgentId(e.target.value)}
+              className="select select-bordered w-full"
+              aria-label="Assign an agent to this zone"
+            >
+              <option value="">— No agent —</option>
+              {agents.map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name || agent.id}
+                </option>
+              ))}
+            </select>
+            {agents.length === 0 && (
+              <span className="label-text-alt text-base-content/60 mt-1">
+                Create agents in the Agents section above to assign them to zones.
+              </span>
+            )}
           </label>
           <button
             type="button"

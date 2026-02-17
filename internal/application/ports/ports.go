@@ -9,6 +9,7 @@ type ProjectRepository interface {
 	List() []*domain.Project
 	Create(name, rootDir string) (*domain.Project, error)
 	Update(id, name, rootDir string) (*domain.Project, error)
+	Delete(projectID string) error
 	AddIgnoredPath(projectID, path string) (*domain.Project, error)
 	RemoveIgnoredPath(projectID, path string) (*domain.Project, error)
 }
@@ -21,6 +22,7 @@ type ZoneRepository interface {
 	Create(projectID, name, pattern, purpose string, constraints []string, agents []domain.Agent) (*domain.Zone, error)
 	Update(id, name, pattern, purpose string, constraints []string, agents []domain.Agent) (*domain.Zone, error)
 	AssignPath(zoneID, path string) (*domain.Zone, error)
+	DeleteByProject(projectID string) error
 }
 
 // PathMatcher is the outbound port for listing paths under a root that match a regex pattern.
@@ -33,4 +35,14 @@ type PathMatcher interface {
 // Implemented by the filesystem adapter.
 type TreeLister interface {
 	ListTree(root string) (*domain.TreeNode, error)
+}
+
+// AgentRepository is the outbound port for persisting and retrieving agents.
+// Agents can be assigned to zones.
+type AgentRepository interface {
+	Get(id string) *domain.Agent
+	List() []*domain.Agent
+	Create(name, description, prompt string) (*domain.Agent, error)
+	Update(id, name, description, prompt string) (*domain.Agent, error)
+	Delete(id string) error
 }

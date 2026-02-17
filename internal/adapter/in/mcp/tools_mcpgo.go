@@ -39,6 +39,12 @@ func RegisterTools(s *server.MCPServer, svc *blueprint.Service) {
 		mcp.WithString("root_dir", mcp.Description("Root directory path")),
 	), toolUpdateProject(svc))
 
+	// delete_project
+	s.AddTool(mcp.NewTool("delete_project",
+		mcp.WithDescription("Delete a project by id. All zones belonging to the project are also deleted."),
+		mcp.WithString("project_id", mcp.Required(), mcp.Description("Project ID")),
+	), toolDeleteProject(svc))
+
 	// add_ignored_path
 	s.AddTool(mcp.NewTool("add_ignored_path",
 		mcp.WithDescription("Add a file or directory path to the project's ignore list. Ignored paths are hidden from the tree view."),
@@ -109,6 +115,40 @@ func RegisterTools(s *server.MCPServer, svc *blueprint.Service) {
 		mcp.WithString("zone_id", mcp.Required(), mcp.Description("Zone ID")),
 		mcp.WithString("path", mcp.Required(), mcp.Description("Path to assign")),
 	), toolAssignPathToZone(svc))
+
+	// list_agents
+	s.AddTool(mcp.NewTool("list_agents",
+		mcp.WithDescription("Return all agents. Agents can be assigned to zones."),
+	), toolListAgents(svc))
+
+	// get_agent
+	s.AddTool(mcp.NewTool("get_agent",
+		mcp.WithDescription("Return one agent by id."),
+		mcp.WithString("agent_id", mcp.Required(), mcp.Description("Agent ID")),
+	), toolGetAgent(svc))
+
+	// create_agent
+	s.AddTool(mcp.NewTool("create_agent",
+		mcp.WithDescription("Create an agent with optional name, description, and prompt."),
+		mcp.WithString("name", mcp.Description("Agent name")),
+		mcp.WithString("description", mcp.Description("Agent description")),
+		mcp.WithString("prompt", mcp.Description("Agent prompt (instructions for the agent)")),
+	), toolCreateAgent(svc))
+
+	// update_agent
+	s.AddTool(mcp.NewTool("update_agent",
+		mcp.WithDescription("Update an agent's name, description, and/or prompt."),
+		mcp.WithString("agent_id", mcp.Required(), mcp.Description("Agent ID")),
+		mcp.WithString("name", mcp.Description("Agent name")),
+		mcp.WithString("description", mcp.Description("Agent description")),
+		mcp.WithString("prompt", mcp.Description("Agent prompt (instructions for the agent)")),
+	), toolUpdateAgent(svc))
+
+	// delete_agent
+	s.AddTool(mcp.NewTool("delete_agent",
+		mcp.WithDescription("Delete an agent by id. The agent is removed from all zones that reference it."),
+		mcp.WithString("agent_id", mcp.Required(), mcp.Description("Agent ID")),
+	), toolDeleteAgent(svc))
 }
 
 func toolListProjects(svc *blueprint.Service) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -161,6 +201,19 @@ func toolUpdateProject(svc *blueprint.Service) func(context.Context, mcp.CallToo
 			return toolError(err)
 		}
 		return jsonResult(UpdateProjectOut{Project: ProjectToDTO(p)})
+	}
+}
+
+func toolDeleteProject(svc *blueprint.Service) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		projectID, err := req.RequireString("project_id")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		if err := svc.DeleteProject(projectID); err != nil {
+			return toolError(err)
+		}
+		return jsonResult(map[string]string{"deleted": projectID})
 	}
 }
 
@@ -335,6 +388,74 @@ func toolAssignPathToZone(svc *blueprint.Service) func(context.Context, mcp.Call
 			return toolError(err)
 		}
 		return jsonResult(AssignPathToZoneOut{Zone: ZoneToDTO(z)})
+	}
+}
+
+func toolListAgents(svc *blueprint.Service) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		agents := svc.ListAgents()
+		out := make([]*AgentDTO, len(agents))
+		for i, a := range agents {
+			out[i] = AgentToDTO(a)
+		}
+		return jsonResult(ListAgentsOut{Agents: out})
+	}
+}
+
+func toolGetAgent(svc *blueprint.Service) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		agentID, err := req.RequireString("agent_id")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		a := svc.GetAgent(agentID)
+		if a == nil {
+			return mcp.NewToolResultError("agent not found"), nil
+		}
+		return jsonResult(GetAgentOut{Agent: AgentToDTO(a)})
+	}
+}
+
+func toolCreateAgent(svc *blueprint.Service) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		name := req.GetString("name", "")
+		description := req.GetString("description", "")
+		prompt := req.GetString("prompt", "")
+		a, err := svc.CreateAgent(name, description, prompt)
+		if err != nil {
+			return toolError(err)
+		}
+		return jsonResult(CreateAgentOut{Agent: AgentToDTO(a)})
+	}
+}
+
+func toolUpdateAgent(svc *blueprint.Service) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		agentID, err := req.RequireString("agent_id")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		name := req.GetString("name", "")
+		description := req.GetString("description", "")
+		prompt := req.GetString("prompt", "")
+		a, err := svc.UpdateAgent(agentID, name, description, prompt)
+		if err != nil {
+			return toolError(err)
+		}
+		return jsonResult(UpdateAgentOut{Agent: AgentToDTO(a)})
+	}
+}
+
+func toolDeleteAgent(svc *blueprint.Service) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		agentID, err := req.RequireString("agent_id")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		if err := svc.DeleteAgent(agentID); err != nil {
+			return toolError(err)
+		}
+		return jsonResult(map[string]string{"deleted": agentID})
 	}
 }
 

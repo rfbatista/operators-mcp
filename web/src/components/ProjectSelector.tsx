@@ -6,6 +6,7 @@ export interface ProjectSelectorProps {
   selectedId: string | null
   onSelect: (projectId: string | null) => void
   onCreateProject: (params: { name?: string; root_dir: string }) => Promise<Project | null>
+  onDeleteProject?: (projectId: string) => Promise<void>
   loading?: boolean
   disabled?: boolean
 }
@@ -15,6 +16,7 @@ export function ProjectSelector({
   selectedId,
   onSelect,
   onCreateProject,
+  onDeleteProject,
   loading,
   disabled,
 }: ProjectSelectorProps) {
@@ -23,6 +25,8 @@ export function ProjectSelector({
   const [newRootDir, setNewRootDir] = useState('')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
   const handleCreate = async () => {
     const root = newRootDir.trim()
@@ -49,6 +53,20 @@ export function ProjectSelector({
       setCreateError(e instanceof Error ? e.message : 'Failed to create project')
     } finally {
       setCreating(false)
+    }
+  }
+
+  const handleDelete = async (projectId: string) => {
+    if (!onDeleteProject) return
+    setDeletingId(projectId)
+    setDeleteConfirmId(null)
+    try {
+      await onDeleteProject(projectId)
+      if (selectedId === projectId) {
+        onSelect(null)
+      }
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -80,6 +98,40 @@ export function ProjectSelector({
       >
         {showNewForm ? 'Cancel' : '+ New project'}
       </button>
+      {onDeleteProject && selectedId && (
+        <>
+          {deleteConfirmId === selectedId ? (
+            <span className="flex items-center gap-1 text-sm">
+              <button
+                type="button"
+                className="btn btn-error btn-sm"
+                onClick={() => handleDelete(selectedId)}
+                disabled={deletingId !== null}
+              >
+                {deletingId === selectedId ? 'Deleting…' : 'Confirm delete'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setDeleteConfirmId(null)}
+                disabled={deletingId !== null}
+              >
+                Cancel
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm text-error"
+              onClick={() => setDeleteConfirmId(selectedId)}
+              disabled={disabled}
+              title="Delete this project"
+            >
+              Delete project
+            </button>
+          )}
+        </>
+      )}
 
       {showNewForm && (
         <div className="card card-border bg-base-100 mt-2 min-w-[280px]">

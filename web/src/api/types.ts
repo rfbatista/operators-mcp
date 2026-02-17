@@ -6,6 +6,14 @@ export interface TreeNode {
   children?: TreeNode[]
 }
 
+/** Agent from list_agents / get_agent - can be assigned to zones */
+export interface Agent {
+  id: string
+  name: string
+  description: string
+  prompt: string
+}
+
 /** Project from list_projects / get_project - defines the directory root for tree, paths, and zones */
 export interface Project {
   id: string
@@ -22,7 +30,10 @@ export interface Zone {
   pattern: string
   purpose: string
   constraints: string[]
+  /** Display name of the first assigned agent */
   assigned_agent: string
+  /** ID of the first assigned agent (for dropdown selection) */
+  assigned_agent_id: string
   explicit_paths: string[]
 }
 

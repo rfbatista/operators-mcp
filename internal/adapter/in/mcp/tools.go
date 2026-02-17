@@ -76,6 +76,11 @@ type UpdateProjectOut struct {
 	Project *ProjectDTO `json:"project"`
 }
 
+// DeleteProjectIn is the input for delete_project.
+type DeleteProjectIn struct {
+	ProjectID string `json:"project_id" jsonschema:"required"`
+}
+
 // AddIgnoredPathIn is the input for add_ignored_path.
 type AddIgnoredPathIn struct {
 	ProjectID string `json:"project_id" jsonschema:"required"`
@@ -149,6 +154,51 @@ type AssignPathToZoneOut struct {
 	Zone *ZoneDTO `json:"zone"`
 }
 
+// ListAgentsOut is the output for list_agents.
+type ListAgentsOut struct {
+	Agents []*AgentDTO `json:"agents"`
+}
+
+// GetAgentIn is the input for get_agent.
+type GetAgentIn struct {
+	AgentID string `json:"agent_id" jsonschema:"required"`
+}
+
+// GetAgentOut is the output for get_agent.
+type GetAgentOut struct {
+	Agent *AgentDTO `json:"agent"`
+}
+
+// CreateAgentIn is the input for create_agent.
+type CreateAgentIn struct {
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	Prompt      string `json:"prompt,omitempty"`
+}
+
+// CreateAgentOut is the output for create_agent.
+type CreateAgentOut struct {
+	Agent *AgentDTO `json:"agent"`
+}
+
+// UpdateAgentIn is the input for update_agent.
+type UpdateAgentIn struct {
+	AgentID     string `json:"agent_id" jsonschema:"required"`
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	Prompt      string `json:"prompt,omitempty"`
+}
+
+// UpdateAgentOut is the output for update_agent.
+type UpdateAgentOut struct {
+	Agent *AgentDTO `json:"agent"`
+}
+
+// DeleteAgentIn is the input for delete_agent.
+type DeleteAgentIn struct {
+	AgentID string `json:"agent_id" jsonschema:"required"`
+}
+
 // emptyIn is used for ListTools schema (HTTP /api/tools).
 type emptyIn struct{}
 
@@ -165,6 +215,7 @@ func ListTools() []ToolDescriptor {
 	schemaGetProject, _ := jsonschema.For[GetProjectIn](nil)
 	schemaCreateProject, _ := jsonschema.For[CreateProjectIn](nil)
 	schemaUpdateProject, _ := jsonschema.For[UpdateProjectIn](nil)
+	schemaDeleteProject, _ := jsonschema.For[DeleteProjectIn](nil)
 	schemaAddIgnoredPath, _ := jsonschema.For[AddIgnoredPathIn](nil)
 	schemaRemoveIgnoredPath, _ := jsonschema.For[RemoveIgnoredPathIn](nil)
 	schemaListMatchingPaths, _ := jsonschema.For[ListMatchingPathsIn](nil)
@@ -174,12 +225,17 @@ func ListTools() []ToolDescriptor {
 	schemaCreateZone, _ := jsonschema.For[CreateZoneIn](nil)
 	schemaUpdateZone, _ := jsonschema.For[UpdateZoneIn](nil)
 	schemaAssignPathToZone, _ := jsonschema.For[AssignPathToZoneIn](nil)
+	schemaGetAgent, _ := jsonschema.For[GetAgentIn](nil)
+	schemaCreateAgent, _ := jsonschema.For[CreateAgentIn](nil)
+	schemaUpdateAgent, _ := jsonschema.For[UpdateAgentIn](nil)
+	schemaDeleteAgent, _ := jsonschema.For[DeleteAgentIn](nil)
 
 	return []ToolDescriptor{
 		{"list_projects", "Return all projects. A project defines the directory root that everything (tree, zones, paths) is based on.", schemaEmpty},
 		{"get_project", "Return one project by id.", schemaGetProject},
 		{"create_project", "Create a project with a name and root directory. The root is the base path for list_tree, list_matching_paths, and zones.", schemaCreateProject},
 		{"update_project", "Update a project's name and/or root_dir.", schemaUpdateProject},
+		{"delete_project", "Delete a project by id. All zones belonging to the project are also deleted.", schemaDeleteProject},
 		{"add_ignored_path", "Add a file or directory path to the project's ignore list. Ignored paths are hidden from the tree view.", schemaAddIgnoredPath},
 		{"remove_ignored_path", "Remove a path from the project's ignore list so it is shown again in the tree view.", schemaRemoveIgnoredPath},
 		{"list_matching_paths", "Return paths under project root that match the given regex pattern. Use project_id or root to specify the base directory.", schemaListMatchingPaths},
@@ -189,5 +245,10 @@ func ListTools() []ToolDescriptor {
 		{"create_zone", "Create a zone in the given project with optional metadata and pattern.", schemaCreateZone},
 		{"update_zone", "Update zone name, pattern, purpose, constraints, assigned_agents.", schemaUpdateZone},
 		{"assign_path_to_zone", "Add a path to a zone's explicit path set.", schemaAssignPathToZone},
+		{"list_agents", "Return all agents. Agents can be assigned to zones.", schemaEmpty},
+		{"get_agent", "Return one agent by id.", schemaGetAgent},
+		{"create_agent", "Create an agent with an optional name.", schemaCreateAgent},
+		{"update_agent", "Update an agent's name.", schemaUpdateAgent},
+		{"delete_agent", "Delete an agent by id. The agent is removed from all zones that reference it.", schemaDeleteAgent},
 	}
 }

@@ -94,6 +94,21 @@ func (r *ProjectRepository) Update(id, name, rootDir string) (*domain.Project, e
 	return m.ToDomain(), nil
 }
 
+// Delete removes a project by id. Caller should delete zones for the project first (e.g. via ZoneRepository.DeleteByProject).
+func (r *ProjectRepository) Delete(projectID string) error {
+	var m ProjectModel
+	if err := r.db.First(&m, "id = ?", projectID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return &domain.StructuredError{Code: "PROJECT_NOT_FOUND", Message: "project not found"}
+		}
+		return err
+	}
+	if err := r.db.Delete(&m).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
 // AddIgnoredPath adds path to the project's ignored list (no-op if already present).
 func (r *ProjectRepository) AddIgnoredPath(projectID, path string) (*domain.Project, error) {
 	path = domain.NormalizePath(path)

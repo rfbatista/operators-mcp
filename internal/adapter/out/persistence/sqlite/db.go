@@ -14,7 +14,7 @@ func Open(path string) (*gorm.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sqlite open: %w", err)
 	}
-	if err := db.AutoMigrate(&ProjectModel{}, &ZoneModel{}); err != nil {
+	if err := db.AutoMigrate(&ProjectModel{}, &ZoneModel{}, &AgentModel{}); err != nil {
 		return nil, fmt.Errorf("sqlite migrate: %w", err)
 	}
 	return db, nil

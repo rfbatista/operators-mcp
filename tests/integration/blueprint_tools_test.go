@@ -23,9 +23,10 @@ func TestBlueprintTools_WithDesignerResource(t *testing.T) {
 
 	projectStore := memory.NewProjectStore()
 	zoneStore := memory.NewStore()
+	agentStore := memory.NewAgentStore()
 	pathMatcher := filesystem.NewMatcher()
 	treeLister := filesystem.NewLister()
-	svc := blueprint.NewService(projectStore, zoneStore, pathMatcher, treeLister, root)
+	svc := blueprint.NewService(projectStore, zoneStore, agentStore, pathMatcher, treeLister, root)
 	baseURL, cleanup := testhelper.StartMCPServer(t, svc, false)
 	defer cleanup()
 	c := testhelper.NewTestClient(t, baseURL)
@@ -39,10 +40,11 @@ func TestBlueprintTools_WithDesignerResource(t *testing.T) {
 		t.Fatalf("ListTools: %v", err)
 	}
 	wantNames := map[string]bool{
-		"list_projects": true, "get_project": true, "create_project": true, "update_project": true,
+		"list_projects": true, "get_project": true, "create_project": true, "update_project": true, "delete_project": true,
 		"add_ignored_path": true, "remove_ignored_path": true,
 		"list_matching_paths": true, "list_tree": true, "list_zones": true,
 		"get_zone": true, "create_zone": true, "update_zone": true, "assign_path_to_zone": true,
+		"list_agents": true, "get_agent": true, "create_agent": true, "update_agent": true, "delete_agent": true,
 	}
 	if len(listRes.Tools) < len(wantNames) {
 		t.Fatalf("ListTools: got %d tools, want at least %d", len(listRes.Tools), len(wantNames))

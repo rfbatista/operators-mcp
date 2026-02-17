@@ -21,9 +21,10 @@ func TestListTree_ValidRoot_ReturnsTree(t *testing.T) {
 
 	projectStore := memory.NewProjectStore()
 	zoneStore := memory.NewStore()
+	agentStore := memory.NewAgentStore()
 	pathMatcher := filesystem.NewMatcher()
 	treeLister := filesystem.NewLister()
-	svc := blueprint.NewService(projectStore, zoneStore, pathMatcher, treeLister, root)
+	svc := blueprint.NewService(projectStore, zoneStore, agentStore, pathMatcher, treeLister, root)
 	baseURL, cleanup := testhelper.StartMCPServer(t, svc, false)
 	defer cleanup()
 	c := testhelper.NewTestClient(t, baseURL)
@@ -69,9 +70,10 @@ func TestListTree_ValidRoot_ReturnsTree(t *testing.T) {
 func TestListTree_UnreadableRoot_StructuredError(t *testing.T) {
 	projectStore := memory.NewProjectStore()
 	zoneStore := memory.NewStore()
+	agentStore := memory.NewAgentStore()
 	pathMatcher := filesystem.NewMatcher()
 	treeLister := filesystem.NewLister()
-	svc := blueprint.NewService(projectStore, zoneStore, pathMatcher, treeLister, "/nonexistent/path/12345")
+	svc := blueprint.NewService(projectStore, zoneStore, agentStore, pathMatcher, treeLister, "/nonexistent/path/12345")
 	baseURL, cleanup := testhelper.StartMCPServer(t, svc, false)
 	defer cleanup()
 	c := testhelper.NewTestClient(t, baseURL)

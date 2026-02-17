@@ -35,9 +35,10 @@ func main() {
 	root, _ := os.Getwd()
 	projectStore := sqlite.NewProjectRepository(db)
 	zoneStore := sqlite.NewZoneRepository(db)
+	agentStore := sqlite.NewAgentRepository(db)
 	pathMatcher := filesystem.NewMatcher()
 	treeLister := filesystem.NewLister()
-	svc := blueprint.NewService(projectStore, zoneStore, pathMatcher, treeLister, root)
+	svc := blueprint.NewService(projectStore, zoneStore, agentStore, pathMatcher, treeLister, root)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

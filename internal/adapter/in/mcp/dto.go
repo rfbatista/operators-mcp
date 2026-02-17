@@ -4,8 +4,23 @@ import "operators-mcp/internal/domain"
 
 // AgentDTO is the MCP/JSON representation of an agent.
 type AgentDTO struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Prompt      string `json:"prompt,omitempty"`
+}
+
+// AgentToDTO converts a domain Agent to API DTO.
+func AgentToDTO(a *domain.Agent) *AgentDTO {
+	if a == nil {
+		return nil
+	}
+	return &AgentDTO{
+		ID:          a.ID,
+		Name:        a.Name,
+		Description: a.Description,
+		Prompt:      a.Prompt,
+	}
 }
 
 // ProjectDTO is the MCP/JSON representation of a project (snake_case for API contract).

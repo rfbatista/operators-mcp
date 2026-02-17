@@ -13,6 +13,7 @@ import type {
   ListProjectsResponseDto,
   CreateProjectRequestDto,
   CreateProjectResponseDto,
+  DeleteProjectRequestDto,
   AddIgnoredPathRequestDto,
   AddIgnoredPathResponseDto,
   RemoveIgnoredPathRequestDto,
@@ -25,6 +26,14 @@ import type {
   UpdateZoneResponseDto,
   AssignPathToZoneRequestDto,
   AssignPathToZoneResponseDto,
+  ListAgentsResponseDto,
+  GetAgentRequestDto,
+  GetAgentResponseDto,
+  CreateAgentRequestDto,
+  CreateAgentResponseDto,
+  UpdateAgentRequestDto,
+  UpdateAgentResponseDto,
+  DeleteAgentRequestDto,
   ApiErrorDto,
 } from './dto'
 
@@ -45,10 +54,14 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     body: bodySerialized,
   }
   const res = await fetch(url, init)
-  const data = await res.json().catch(() => ({}))
+  const data =
+    res.status === 204 ? {} : await res.json().catch(() => ({}))
   if (!res.ok) {
     const msg = (data as ApiErrorDto).error ?? res.statusText
     throw new ApiError(res.status, msg)
+  }
+  if (res.status === 204) {
+    return undefined as T
   }
   return data as T
 }
@@ -73,6 +86,16 @@ export async function createProject(
   body: CreateProjectRequestDto
 ): Promise<CreateProjectResponseDto> {
   return request<CreateProjectResponseDto>('/create_project', {
+    method: 'POST',
+    body,
+  })
+}
+
+/** POST delete_project */
+export async function deleteProject(
+  body: DeleteProjectRequestDto
+): Promise<void> {
+  await request<void>('/delete_project', {
     method: 'POST',
     body,
   })
@@ -165,6 +188,50 @@ export async function assignPathToZone(
   body: AssignPathToZoneRequestDto
 ): Promise<AssignPathToZoneResponseDto> {
   return request<AssignPathToZoneResponseDto>('/assign_path_to_zone', {
+    method: 'POST',
+    body,
+  })
+}
+
+/** GET list_agents */
+export async function listAgents(): Promise<ListAgentsResponseDto> {
+  return request<ListAgentsResponseDto>('/list_agents')
+}
+
+/** GET get_agent?agent_id=... */
+export async function getAgent(
+  req: GetAgentRequestDto
+): Promise<GetAgentResponseDto> {
+  const params = new URLSearchParams()
+  params.set('agent_id', req.agent_id)
+  return request<GetAgentResponseDto>(`/get_agent?${params.toString()}`)
+}
+
+/** POST create_agent */
+export async function createAgent(
+  body: CreateAgentRequestDto
+): Promise<CreateAgentResponseDto> {
+  return request<CreateAgentResponseDto>('/create_agent', {
+    method: 'POST',
+    body,
+  })
+}
+
+/** POST update_agent */
+export async function updateAgent(
+  body: UpdateAgentRequestDto
+): Promise<UpdateAgentResponseDto> {
+  return request<UpdateAgentResponseDto>('/update_agent', {
+    method: 'POST',
+    body,
+  })
+}
+
+/** POST delete_agent */
+export async function deleteAgent(
+  body: DeleteAgentRequestDto
+): Promise<void> {
+  await request<void>('/delete_agent', {
     method: 'POST',
     body,
   })

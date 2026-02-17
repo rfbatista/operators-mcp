@@ -107,6 +107,18 @@ func (s *Store) AssignPath(zoneID, path string) (*domain.Zone, error) {
 	return cloneZone(z), nil
 }
 
+// DeleteByProject removes all zones for the given project.
+func (s *Store) DeleteByProject(projectID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, z := range s.zones {
+		if z.ProjectID == projectID {
+			delete(s.zones, id)
+		}
+	}
+	return nil
+}
+
 func cloneZone(z *domain.Zone) *domain.Zone {
 	c := *z
 	c.Constraints = append([]string(nil), z.Constraints...)

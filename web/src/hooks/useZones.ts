@@ -6,7 +6,8 @@ import {
   updateZone as updateZoneApi,
   assignPathToZone as assignPathToZoneApi,
 } from '../api/client'
-import { zoneFromDto, toAssignedAgentsDto } from '../api/mappers'
+import type { AgentDto } from '../api/dto'
+import { zoneFromDto } from '../api/mappers'
 import type { Zone } from '../api/types'
 
 export interface UseZonesResult {
@@ -21,7 +22,7 @@ export interface UseZonesResult {
     pattern?: string
     purpose?: string
     constraints?: string[]
-    assigned_agent?: string
+    assigned_agents?: AgentDto[]
   }) => Promise<Zone | null>
   updateZone: (params: {
     zone_id: string
@@ -29,7 +30,7 @@ export interface UseZonesResult {
     pattern?: string
     purpose?: string
     constraints?: string[]
-    assigned_agent?: string
+    assigned_agents?: AgentDto[]
   }) => Promise<Zone | null>
   assignPathToZone: (zoneId: string, path: string) => Promise<Zone | null>
 }
@@ -74,7 +75,7 @@ export function useZones(projectId: string | null): UseZonesResult {
       pattern?: string
       purpose?: string
       constraints?: string[]
-      assigned_agent?: string
+      assigned_agents?: AgentDto[]
     }): Promise<Zone | null> => {
       try {
         const res = await createZoneApi({
@@ -83,7 +84,7 @@ export function useZones(projectId: string | null): UseZonesResult {
           pattern: params.pattern ?? '',
           purpose: params.purpose ?? '',
           constraints: params.constraints ?? [],
-          assigned_agents: toAssignedAgentsDto(params.assigned_agent),
+          assigned_agents: params.assigned_agents ?? [],
         })
         await refetch()
         return zoneFromDto(res.zone) ?? null
@@ -101,7 +102,7 @@ export function useZones(projectId: string | null): UseZonesResult {
       pattern?: string
       purpose?: string
       constraints?: string[]
-      assigned_agent?: string
+      assigned_agents?: AgentDto[]
     }): Promise<Zone | null> => {
       try {
         const res = await updateZoneApi({
@@ -110,7 +111,7 @@ export function useZones(projectId: string | null): UseZonesResult {
           pattern: params.pattern ?? '',
           purpose: params.purpose ?? '',
           constraints: params.constraints ?? [],
-          assigned_agents: toAssignedAgentsDto(params.assigned_agent),
+          assigned_agents: params.assigned_agents ?? [],
         })
         await refetch()
         return zoneFromDto(res.zone) ?? null

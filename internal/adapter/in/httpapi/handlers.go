@@ -27,6 +27,7 @@ func (h *Handler) Mount(mux *http.ServeMux, prefix string) {
 	mux.HandleFunc(prefix+"/get_project", h.handleGetProject)
 	mux.HandleFunc(prefix+"/create_project", h.handleCreateProject)
 	mux.HandleFunc(prefix+"/update_project", h.handleUpdateProject)
+	mux.HandleFunc(prefix+"/delete_project", h.handleDeleteProject)
 	mux.HandleFunc(prefix+"/add_ignored_path", h.handleAddIgnoredPath)
 	mux.HandleFunc(prefix+"/remove_ignored_path", h.handleRemoveIgnoredPath)
 	mux.HandleFunc(prefix+"/list_tree", h.handleListTree)
@@ -36,6 +37,11 @@ func (h *Handler) Mount(mux *http.ServeMux, prefix string) {
 	mux.HandleFunc(prefix+"/create_zone", h.handleCreateZone)
 	mux.HandleFunc(prefix+"/update_zone", h.handleUpdateZone)
 	mux.HandleFunc(prefix+"/assign_path_to_zone", h.handleAssignPathToZone)
+	mux.HandleFunc(prefix+"/list_agents", h.handleListAgents)
+	mux.HandleFunc(prefix+"/get_agent", h.handleGetAgent)
+	mux.HandleFunc(prefix+"/create_agent", h.handleCreateAgent)
+	mux.HandleFunc(prefix+"/update_agent", h.handleUpdateAgent)
+	mux.HandleFunc(prefix+"/delete_agent", h.handleDeleteAgent)
 }
 
 func (h *Handler) handleListTools(w http.ResponseWriter, r *http.Request) {
@@ -112,6 +118,23 @@ func (h *Handler) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, mcp.UpdateProjectOut{Project: mcp.ProjectToDTO(p)})
+}
+
+func (h *Handler) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var in mcp.DeleteProjectIn
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeJSONError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	if err := h.svc.DeleteProject(in.ProjectID); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) handleAddIgnoredPath(w http.ResponseWriter, r *http.Request) {
@@ -295,6 +318,94 @@ func (h *Handler) handleAssignPathToZone(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, mcp.AssignPathToZoneOut{Zone: mcp.ZoneToDTO(z)})
 }
 
+func (h *Handler) handleListAgents(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	agents := h.svc.ListAgents()
+	out := make([]*mcp.AgentDTO, len(agents))
+	for i, a := range agents {
+		out[i] = mcp.AgentToDTO(a)
+	}
+	writeJSON(w, mcp.ListAgentsOut{Agents: out})
+}
+
+func (h *Handler) handleGetAgent(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var in mcp.GetAgentIn
+	if r.Method == http.MethodPost {
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			writeJSONError(w, "invalid body", http.StatusBadRequest)
+			return
+		}
+	} else {
+		in.AgentID = r.URL.Query().Get("agent_id")
+	}
+	a := h.svc.GetAgent(in.AgentID)
+	if a == nil {
+		writeJSONError(w, "agent not found", http.StatusNotFound)
+		return
+	}
+	writeJSON(w, mcp.GetAgentOut{Agent: mcp.AgentToDTO(a)})
+}
+
+func (h *Handler) handleCreateAgent(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var in mcp.CreateAgentIn
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeJSONError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	a, err := h.svc.CreateAgent(in.Name, in.Description, in.Prompt)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	writeJSON(w, mcp.CreateAgentOut{Agent: mcp.AgentToDTO(a)})
+}
+
+func (h *Handler) handleUpdateAgent(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var in mcp.UpdateAgentIn
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeJSONError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	a, err := h.svc.UpdateAgent(in.AgentID, in.Name, in.Description, in.Prompt)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	writeJSON(w, mcp.UpdateAgentOut{Agent: mcp.AgentToDTO(a)})
+}
+
+func (h *Handler) handleDeleteAgent(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var in mcp.DeleteAgentIn
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeJSONError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	if err := h.svc.DeleteAgent(in.AgentID); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(v)
@@ -310,7 +421,7 @@ func writeDomainError(w http.ResponseWriter, err error) {
 	var se *domain.StructuredError
 	if errors.As(err, &se) {
 		switch se.Code {
-		case "ZONE_NOT_FOUND", "PROJECT_NOT_FOUND":
+		case "ZONE_NOT_FOUND", "PROJECT_NOT_FOUND", "AGENT_NOT_FOUND":
 			writeJSONError(w, se.Message, http.StatusNotFound)
 			return
 		case "INVALID_PATTERN", "INVALID_NAME", "INVALID_ROOT", "INVALID_PATH":

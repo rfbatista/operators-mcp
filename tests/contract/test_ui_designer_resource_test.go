@@ -18,7 +18,7 @@ import (
 func TestReadDesignerResource_ProductionWithEmbed_Success(t *testing.T) {
 	html := `<html><body>Designer</body></html>`
 	testFS := &staticFS{files: map[string]string{"static/index.html": html}}
-	svc := blueprint.NewService(nil, nil, nil, nil, "")
+	svc := blueprint.NewService(nil, nil, nil, nil, nil, "")
 	baseURL, cleanup := testhelper.StartMCPServerWithDesigner(t, svc, false, testFS, "")
 	defer cleanup()
 	c := testhelper.NewTestClient(t, baseURL)
@@ -43,7 +43,7 @@ func TestReadDesignerResource_ProductionWithEmbed_Success(t *testing.T) {
 func TestReadDesignerResource_ProductionAssetsMissing_StructuredError(t *testing.T) {
 	// Empty FS (no static/index.html) so DesignerContent returns assets-missing error.
 	emptyFS := &staticFS{files: map[string]string{}}
-	svc := blueprint.NewService(nil, nil, nil, nil, "")
+	svc := blueprint.NewService(nil, nil, nil, nil, nil, "")
 	baseURL, cleanup := testhelper.StartMCPServerWithDesigner(t, svc, false, emptyFS, "")
 	defer cleanup()
 	c := testhelper.NewTestClient(t, baseURL)
@@ -72,7 +72,7 @@ func TestReadDesignerResource_DevModeWithServerRunning_Success(t *testing.T) {
 	t.Cleanup(func() { srv.Close() })
 	time.Sleep(50 * time.Millisecond)
 
-	svc := blueprint.NewService(nil, nil, nil, nil, "")
+	svc := blueprint.NewService(nil, nil, nil, nil, nil, "")
 	baseURL, cleanup := testhelper.StartMCPServerWithDesigner(t, svc, true, nil, "http://localhost:5174")
 	defer cleanup()
 	c := testhelper.NewTestClient(t, baseURL)
@@ -95,7 +95,7 @@ func TestReadDesignerResource_DevModeWithServerRunning_Success(t *testing.T) {
 }
 
 func TestReadDesignerResource_DevModeServerNotRunning_StructuredError(t *testing.T) {
-	svc := blueprint.NewService(nil, nil, nil, nil, "")
+	svc := blueprint.NewService(nil, nil, nil, nil, nil, "")
 	baseURL, cleanup := testhelper.StartMCPServerWithDesigner(t, svc, true, nil, "http://127.0.0.1:59999")
 	defer cleanup()
 	c := testhelper.NewTestClient(t, baseURL)

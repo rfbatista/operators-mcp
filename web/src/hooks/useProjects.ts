@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import { listProjects, createProject, addIgnoredPath as addIgnoredPathApi, removeIgnoredPath as removeIgnoredPathApi } from '../api/client'
+import { listProjects, createProject, deleteProject as deleteProjectApi, addIgnoredPath as addIgnoredPathApi, removeIgnoredPath as removeIgnoredPathApi } from '../api/client'
 import { projectFromDto } from '../api/mappers'
 import type { Project } from '../api/types'
 
@@ -9,6 +9,7 @@ export interface UseProjectsResult {
   error: string | null
   refetch: () => Promise<void>
   createProject: (params: { name?: string; root_dir: string }) => Promise<Project | null>
+  deleteProject: (projectId: string) => Promise<void>
   addIgnoredPath: (projectId: string, path: string) => Promise<void>
   removeIgnoredPath: (projectId: string, path: string) => Promise<void>
 }
@@ -48,6 +49,14 @@ export function useProjects(): UseProjectsResult {
     [refetch]
   )
 
+  const deleteProjectCallback = useCallback(
+    async (projectId: string) => {
+      await deleteProjectApi({ project_id: projectId })
+      await refetch()
+    },
+    [refetch]
+  )
+
   const addIgnoredPathCallback = useCallback(
     async (projectId: string, path: string) => {
       await addIgnoredPathApi({ project_id: projectId, path })
@@ -74,6 +83,7 @@ export function useProjects(): UseProjectsResult {
     error,
     refetch,
     createProject: createProjectApi,
+    deleteProject: deleteProjectCallback,
     addIgnoredPath: addIgnoredPathCallback,
     removeIgnoredPath: removeIgnoredPathCallback,
   }

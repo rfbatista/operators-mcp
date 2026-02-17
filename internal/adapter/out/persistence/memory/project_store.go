@@ -81,6 +81,17 @@ func (s *ProjectStore) Update(id, name, rootDir string) (*domain.Project, error)
 	return cloneProject(p), nil
 }
 
+// Delete removes a project by id. Returns PROJECT_NOT_FOUND if it does not exist.
+func (s *ProjectStore) Delete(projectID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.projects[projectID]; !ok {
+		return &domain.StructuredError{Code: "PROJECT_NOT_FOUND", Message: "project not found"}
+	}
+	delete(s.projects, projectID)
+	return nil
+}
+
 func cloneProject(p *domain.Project) *domain.Project {
 	if p == nil {
 		return nil
