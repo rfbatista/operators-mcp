@@ -8,6 +8,7 @@ import (
 	"os/signal"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
+	"operators-mcp/internal/blueprint"
 	"operators-mcp/internal/mcp"
 	"operators-mcp/internal/ui"
 )
@@ -18,6 +19,10 @@ func main() {
 
 	cfg := mcp.Config{DevMode: *devMode}
 	server := mcp.NewServer(cfg)
+
+	root, _ := os.Getwd()
+	store := blueprint.NewStore()
+	blueprint.RegisterTools(server, root, store)
 
 	if *devMode {
 		server.AddResource(&sdkmcp.Resource{
