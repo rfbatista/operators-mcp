@@ -1,11 +1,11 @@
 # operators-mcp — MCP server + Architecture Designer UI
 # See specs/001-go-react-ui-bridge/quickstart.md for usage.
 
-.PHONY: help build run dev-server test clean web-install web-build web-dev copy-ui deps
+.PHONY: help build run dev-server test clean web-install web-build web-dev copy-ui deps air
 
 BINARY   := bin/server
 WEB_DIR  := web
-UI_STATIC := internal/ui/static
+UI_STATIC := internal/adapter/in/ui/static
 
 # Default target
 help:
@@ -14,6 +14,7 @@ help:
 	@echo "  make run         — run production server (requires 'make build' first)"
 	@echo "  make dev-server  — run Go server with --dev (run 'make web-dev' in another terminal for hot-reload)"
 	@echo "  make web-dev     — start Vite dev server (port 5173)"
+	@echo "  make air         — run with Air: rebuild on Go or React changes, UI at :8080 (requires: go install github.com/air-verse/air@latest)"
 	@echo "  make test        — run Go tests (contract + integration)"
 	@echo "  make clean       — remove bin/, web/dist/, $(UI_STATIC)/"
 	@echo "  make deps        — install Go deps + web npm deps"
@@ -56,6 +57,10 @@ run: build
 # Run Go server in dev mode (proxies ui://designer to Vite; start Vite with 'make web-dev' first)
 dev-server:
 	go run ./cmd/server --dev
+
+# Run with Air: auto-rebuild and restart on Go or web/src changes; serves UI at http://localhost:8080
+air:
+	air
 
 # Run all Go tests
 test:

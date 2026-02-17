@@ -3,13 +3,15 @@ package unit
 import (
 	"testing"
 
-	"operators-mcp/internal/blueprint"
+	"operators-mcp/internal/adapter/out/persistence/memory"
+	"operators-mcp/internal/domain"
 )
 
 func TestStore_CreateListGetUpdateAssignPath(t *testing.T) {
-	s := blueprint.NewStore()
+	s := memory.NewStore()
 
-	z, err := s.Create("backend", "cmd/.*", "Server code", []string{"no UI"}, "agent-1")
+	agents1 := []domain.Agent{{ID: "agent-1", Name: "Agent 1"}}
+	z, err := s.Create("backend", "cmd/.*", "Server code", []string{"no UI"}, agents1)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -18,6 +20,9 @@ func TestStore_CreateListGetUpdateAssignPath(t *testing.T) {
 	}
 	if z.Name != "backend" {
 		t.Errorf("name: got %q", z.Name)
+	}
+	if len(z.AssignedAgents) != 1 || z.AssignedAgents[0].ID != "agent-1" {
+		t.Errorf("AssignedAgents: got %v", z.AssignedAgents)
 	}
 
 	list := s.List()
@@ -36,12 +41,16 @@ func TestStore_CreateListGetUpdateAssignPath(t *testing.T) {
 		t.Errorf("Get.Name: got %q", got.Name)
 	}
 
-	updated, err := s.Update(z.ID, "backend-updated", "internal/.*", "Internal pkgs", nil, "agent-2")
+	agents2 := []domain.Agent{{ID: "agent-2", Name: "Agent 2"}}
+	updated, err := s.Update(z.ID, "backend-updated", "internal/.*", "Internal pkgs", nil, agents2)
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 	if updated.Name != "backend-updated" {
 		t.Errorf("Update name: got %q", updated.Name)
+	}
+	if len(updated.AssignedAgents) != 1 || updated.AssignedAgents[0].ID != "agent-2" {
+		t.Errorf("AssignedAgents after Update: got %v", updated.AssignedAgents)
 	}
 
 	assigned, err := s.AssignPath(z.ID, "internal/blueprint")
@@ -54,30 +63,30 @@ func TestStore_CreateListGetUpdateAssignPath(t *testing.T) {
 }
 
 func TestStore_CreateEmptyName_Error(t *testing.T) {
-	s := blueprint.NewStore()
-	_, err := s.Create("", "x", "", nil, "")
+	s := memory.NewStore()
+	_, err := s.Create("", "x", "", nil, nil)
 	if err == nil {
 		t.Fatal("expected error for empty name")
 	}
-	if se, ok := err.(*blueprint.StructuredError); !ok || se.Code != "INVALID_NAME" {
+	if se, ok := err.(*domain.StructuredError); !ok || se.Code != "INVALID_NAME" {
 		t.Errorf("expected INVALID_NAME, got %v", err)
 	}
 }
 
 func TestStore_GetNotFound_Nil(t *testing.T) {
-	s := blueprint.NewStore()
+	s := memory.NewStore()
 	if s.Get("nonexistent") != nil {
 		t.Error("Get nonexistent should return nil")
 	}
 }
 
 func TestStore_UpdateNotFound_Error(t *testing.T) {
-	s := blueprint.NewStore()
-	_, err := s.Update("nonexistent", "x", "", "", nil, "")
+	s := memory.NewStore()
+	_, err := s.Update("nonexistent", "x", "", "", nil, nil)
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	if se, ok := err.(*blueprint.StructuredError); !ok || se.Code != "ZONE_NOT_FOUND" {
+	if se, ok := err.(*domain.StructuredError); !ok || se.Code != "ZONE_NOT_FOUND" {
 		t.Errorf("expected ZONE_NOT_FOUND, got %v", err)
 	}
 }

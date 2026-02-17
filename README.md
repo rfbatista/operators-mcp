@@ -2,10 +2,14 @@
 
 MCP server for the AI-Architecture Orchestrator (Stateful MCP Server). Serves the Architecture Designer UI at resource `ui://designer`.
 
+**Architecture**: The codebase follows [hexagonal (ports & adapters)](docs/ARCHITECTURE.md): `internal/domain`, `internal/application/blueprint`, and `internal/adapter` (in/out).
+
 **Quick start (Makefile)**:
 - `make help` — list all targets
 - `make deps && make build && make run` — production
 - `make web-dev` (terminal 1) + `make dev-server` (terminal 2) — development with hot-reload
+- `make build && ./bin/server -http` — serve the React UI at http://localhost:8080 (use `-http.addr :3000` for another port)
+- `make air` — run with [Air](https://github.com/air-verse/air): auto-reload on Go or React changes, UI at http://localhost:8080 (install: `go install github.com/air-verse/air@latest`)
 
 **Details**: [specs/001-go-react-ui-bridge/quickstart.md](specs/001-go-react-ui-bridge/quickstart.md)
 

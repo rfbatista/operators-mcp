@@ -18,6 +18,7 @@ yarn-error.log*
 
 # Build output
 bin/
+tmp/
 
 # Copied UI build for embed (generated; see internal/ui/embed.go)
 internal/ui/static/
@@ -36,3 +37,4 @@ Thumbs.db
 # Universal
 *.log
 *.tmp
+internal/adapter/in/ui/static

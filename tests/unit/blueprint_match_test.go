@@ -5,7 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"operators-mcp/internal/blueprint"
+	"operators-mcp/internal/adapter/out/filesystem"
+	"operators-mcp/internal/domain"
 )
 
 func TestListMatchingPaths_ValidPattern_ReturnsPaths(t *testing.T) {
@@ -13,7 +14,8 @@ func TestListMatchingPaths_ValidPattern_ReturnsPaths(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(root, "cmd", "server"), 0755)
 	_ = os.MkdirAll(filepath.Join(root, "internal", "mcp"), 0755)
 
-	paths, err := blueprint.ListMatchingPaths(root, "cmd")
+	matcher := filesystem.NewMatcher()
+	paths, err := matcher.ListMatchingPaths(root, "cmd")
 	if err != nil {
 		t.Fatalf("ListMatchingPaths: %v", err)
 	}
@@ -34,11 +36,12 @@ func TestListMatchingPaths_ValidPattern_ReturnsPaths(t *testing.T) {
 
 func TestListMatchingPaths_InvalidPattern_StructuredError(t *testing.T) {
 	root := t.TempDir()
-	_, err := blueprint.ListMatchingPaths(root, "[")
+	matcher := filesystem.NewMatcher()
+	_, err := matcher.ListMatchingPaths(root, "[")
 	if err == nil {
 		t.Fatal("expected error for invalid regex")
 	}
-	se, ok := err.(*blueprint.StructuredError)
+	se, ok := err.(*domain.StructuredError)
 	if !ok {
 		t.Fatalf("expected StructuredError, got %T", err)
 	}
@@ -48,11 +51,12 @@ func TestListMatchingPaths_InvalidPattern_StructuredError(t *testing.T) {
 }
 
 func TestListMatchingPaths_NonexistentRoot_StructuredError(t *testing.T) {
-	_, err := blueprint.ListMatchingPaths("/nonexistent/path/12345", ".")
+	matcher := filesystem.NewMatcher()
+	_, err := matcher.ListMatchingPaths("/nonexistent/path/12345", ".")
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	se, ok := err.(*blueprint.StructuredError)
+	se, ok := err.(*domain.StructuredError)
 	if !ok || se.Code != "ROOT_UNREADABLE" {
 		t.Errorf("expected ROOT_UNREADABLE, got %v", err)
 	}

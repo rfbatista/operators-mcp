@@ -1,0 +1,53 @@
+# Air config: rebuild and restart the server when Go or React source changes.
+# Run with: air (or make air)
+# Requires: go install github.com/air-verse/air@latest
+
+root = "."
+tmp_dir = "tmp"
+
+[build]
+# Build web UI, copy into embed dir, then build Go binary.
+cmd = "cd web && npm run build && cd .. && mkdir -p internal/adapter/in/ui/static && cp -r web/dist/* internal/adapter/in/ui/static/ && go build -o ./tmp/main ./cmd/server"
+bin = "./tmp/main"
+# Serve the React UI at http://localhost:8080
+args_bin = ["-http"]
+# Watch Go and React source (exclude generated dirs to avoid rebuild loops)
+include_ext = ["go", "html", "ts", "tsx", "css", "json"]
+include_dir = ["cmd", "internal", "web/src", "web"]
+exclude_dir = [
+  "tmp",
+  "vendor",
+  "node_modules",
+  "web/node_modules",
+  "web/dist",
+  "internal/adapter/in/ui/static",
+]
+exclude_file = []
+exclude_regex = []
+exclude_unchanged = false
+follow_symlink = false
+log = "tmp/build-errors.log"
+poll = false
+rerun = false
+rerun_delay = 500
+send_interrupt = true
+stop_on_error = false
+delay = 1000
+
+[color]
+app = ""
+build = "yellow"
+main = "magenta"
+runner = "green"
+watcher = "cyan"
+
+[log]
+main_only = false
+time = false
+
+[misc]
+clean_on_exit = true
+
+[screen]
+clear_on_rebuild = false
+keep_scroll = true

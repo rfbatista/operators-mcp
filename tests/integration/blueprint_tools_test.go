@@ -8,8 +8,11 @@ import (
 	"testing"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
-	"operators-mcp/internal/blueprint"
-	"operators-mcp/internal/ui"
+	"operators-mcp/internal/adapter/in/mcp"
+	"operators-mcp/internal/adapter/in/ui"
+	"operators-mcp/internal/adapter/out/filesystem"
+	"operators-mcp/internal/adapter/out/persistence/memory"
+	"operators-mcp/internal/application/blueprint"
 )
 
 // TestBlueprintTools_WithDesignerResource runs server with both ui://designer
@@ -19,9 +22,12 @@ func TestBlueprintTools_WithDesignerResource(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(root, "cmd"), 0755)
 	_ = os.WriteFile(filepath.Join(root, "go.mod"), []byte("module test\n"), 0644)
 
-	store := blueprint.NewStore()
+	zoneStore := memory.NewStore()
+	pathMatcher := filesystem.NewMatcher()
+	treeLister := filesystem.NewLister()
+	svc := blueprint.NewService(zoneStore, pathMatcher, treeLister)
 	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	blueprint.RegisterTools(server, root, store)
+	mcp.RegisterTools(server, root, svc)
 	// Also register designer resource so server has both
 	server.AddResource(&sdkmcp.Resource{URI: ui.DesignerURI, Name: "Designer", MIMEType: "text/html"},
 		ui.NewDesignerResourceHandler(false, nil))

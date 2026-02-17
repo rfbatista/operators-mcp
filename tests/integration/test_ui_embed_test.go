@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
-	"operators-mcp/internal/mcp"
-	"operators-mcp/internal/ui"
+	"operators-mcp/internal/adapter/in/mcp"
+	"operators-mcp/internal/adapter/in/ui"
 )
 
 // TestUIEmbed_ServerServesDesignerFromEmbed verifies that when the server runs in production
-// mode with embedded UI (internal/ui/static populated from web/dist), requesting ui://designer
-// returns HTML. Populate static before running: cp -r web/dist/* internal/ui/static/
+// mode with embedded UI (internal/adapter/in/ui/static populated from web/dist), requesting ui://designer
+// returns HTML. Populate static before running: cp -r web/dist/* internal/adapter/in/ui/static/
 func TestUIEmbed_ServerServesDesignerFromEmbed(t *testing.T) {
 	ctx := context.Background()
 	cfg := mcp.Config{DevMode: false}
@@ -33,7 +33,7 @@ func TestUIEmbed_ServerServesDesignerFromEmbed(t *testing.T) {
 
 	res, err := session.ReadResource(ctx, &sdkmcp.ReadResourceParams{URI: ui.DesignerURI})
 	if err != nil {
-		t.Fatalf("ReadResource: %v (ensure internal/ui/static is populated: cp -r web/dist/* internal/ui/static/)", err)
+		t.Fatalf("ReadResource: %v (ensure internal/adapter/in/ui/static is populated: cp -r web/dist/* internal/adapter/in/ui/static/)", err)
 	}
 	if len(res.Contents) == 0 {
 		t.Fatal("expected at least one content")

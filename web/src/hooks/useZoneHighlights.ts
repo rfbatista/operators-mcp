@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { callTool } from '../api/callTool'
+import { listZones, listMatchingPaths } from '../api/client'
+import { zoneFromDto } from '../api/mappers'
 import type { Zone } from '../api/types'
 
 export interface ZoneHighlights {
@@ -21,14 +22,8 @@ export function useZoneHighlights(): ZoneHighlights & { refetch: () => void } {
     setLoading(true)
     setError(null)
     try {
-      const listRes = await callTool('list_zones', {})
-      if (listRes.isError || !listRes.content?.[0]?.text) {
-        setZones([])
-        setHighlightPaths(new Set())
-        setPathToZones(new Map())
-        return
-      }
-      const { zones: zs } = JSON.parse(listRes.content[0].text) as { zones: Zone[] }
+      const listRes = await listZones()
+      const zs = (listRes.zones ?? []).map(zoneFromDto).filter(Boolean) as Zone[]
       setZones(zs)
 
       const allPaths = new Set<string>()
@@ -42,14 +37,15 @@ export function useZoneHighlights(): ZoneHighlights & { refetch: () => void } {
           }
           continue
         }
-        const matchRes = await callTool('list_matching_paths', {
-          pattern: zone.pattern,
-        })
-        if (matchRes.isError || !matchRes.content?.[0]?.text) continue
-        const { paths } = JSON.parse(matchRes.content[0].text) as { paths: string[] }
-        for (const p of paths) {
-          allPaths.add(p)
-          pathToZonesMap.set(p, [...(pathToZonesMap.get(p) ?? []), zone.name])
+        try {
+          const matchRes = await listMatchingPaths({ pattern: zone.pattern })
+          const paths = matchRes.paths ?? []
+          for (const p of paths) {
+            allPaths.add(p)
+            pathToZonesMap.set(p, [...(pathToZonesMap.get(p) ?? []), zone.name])
+          }
+        } catch {
+          // skip zone on match error
         }
         for (const p of zone.explicit_paths || []) {
           allPaths.add(p)

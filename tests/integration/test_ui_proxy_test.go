@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
-	"operators-mcp/internal/mcp"
-	"operators-mcp/internal/ui"
+	"operators-mcp/internal/adapter/in/mcp"
+	"operators-mcp/internal/adapter/in/ui"
 )
 
 func TestUIProxy_DevModeServesFromVite(t *testing.T) {

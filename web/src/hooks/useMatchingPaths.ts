@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { callTool } from '../api/callTool'
+import { listMatchingPaths } from '../api/client'
+import { ApiError } from '../api/client'
 
 const DEBOUNCE_MS = 400
 
@@ -31,26 +32,19 @@ export function useMatchingPaths(): UseMatchingPathsResult {
     setError(null)
     setInvalidPattern(false)
     try {
-      const res = await callTool('list_matching_paths', { pattern: p })
-      if (res.isError) {
-        const text = res.content?.[0]?.text ?? ''
-        if (text.includes('INVALID_PATTERN') || /invalid|regex|syntax/i.test(text)) {
-          setInvalidPattern(true)
-          setPaths([])
-        } else {
-          setError('Failed to get matching paths')
-        }
-        return
-      }
-      if (!res.content?.[0]?.text) {
-        setPaths([])
-        return
-      }
-      const data = JSON.parse(res.content[0].text) as { paths?: string[] }
-      setPaths(data.paths ?? [])
+      const res = await listMatchingPaths({ pattern: p })
+      setPaths(res.paths ?? [])
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to get matching paths')
-      setPaths([])
+      const msg = e instanceof Error ? e.message : ''
+      if (
+        e instanceof ApiError &&
+        (e.message.includes('INVALID_PATTERN') || /invalid|regex|syntax/i.test(e.message))
+      ) {
+        setInvalidPattern(true)
+        setPaths([])
+      } else {
+        setError(msg || 'Failed to get matching paths')
+      }
     } finally {
       setLoading(false)
     }

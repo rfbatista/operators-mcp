@@ -10,7 +10,7 @@ import (
 	"time"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
-	"operators-mcp/internal/ui"
+	"operators-mcp/internal/adapter/in/ui"
 )
 
 func TestReadDesignerResource_ProductionWithEmbed_Success(t *testing.T) {

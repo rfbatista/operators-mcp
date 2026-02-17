@@ -1,5 +1,12 @@
 import { useState, useCallback, useEffect } from 'react'
-import { callTool } from '../api/callTool'
+import {
+  listZones,
+  getZone as getZoneApi,
+  createZone as createZoneApi,
+  updateZone as updateZoneApi,
+  assignPathToZone as assignPathToZoneApi,
+} from '../api/client'
+import { zoneFromDto, toAssignedAgentsDto } from '../api/mappers'
 import type { Zone } from '../api/types'
 
 export interface UseZonesResult {
@@ -35,13 +42,8 @@ export function useZones(): UseZonesResult {
     setLoading(true)
     setError(null)
     try {
-      const res = await callTool('list_zones', {})
-      if (res.isError || !res.content?.[0]?.text) {
-        setZones([])
-        return
-      }
-      const data = JSON.parse(res.content[0].text) as { zones: Zone[] }
-      setZones(data.zones ?? [])
+      const res = await listZones()
+      setZones((res.zones ?? []).map(zoneFromDto).filter(Boolean) as Zone[])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load zones')
       setZones([])
@@ -51,10 +53,12 @@ export function useZones(): UseZonesResult {
   }, [])
 
   const getZone = useCallback(async (id: string): Promise<Zone | null> => {
-    const res = await callTool('get_zone', { zone_id: id })
-    if (res.isError || !res.content?.[0]?.text) return null
-    const data = JSON.parse(res.content[0].text) as { zone: Zone }
-    return data.zone ?? null
+    try {
+      const res = await getZoneApi({ zone_id: id })
+      return zoneFromDto(res.zone) ?? null
+    } catch {
+      return null
+    }
   }, [])
 
   const createZone = useCallback(
@@ -65,17 +69,19 @@ export function useZones(): UseZonesResult {
       constraints?: string[]
       assigned_agent?: string
     }): Promise<Zone | null> => {
-      const res = await callTool('create_zone', {
-        name: params.name,
-        pattern: params.pattern ?? '',
-        purpose: params.purpose ?? '',
-        constraints: params.constraints ?? [],
-        assigned_agent: params.assigned_agent ?? '',
-      })
-      if (res.isError || !res.content?.[0]?.text) return null
-      const data = JSON.parse(res.content[0].text) as { zone: Zone }
-      await refetch()
-      return data.zone ?? null
+      try {
+        const res = await createZoneApi({
+          name: params.name,
+          pattern: params.pattern ?? '',
+          purpose: params.purpose ?? '',
+          constraints: params.constraints ?? [],
+          assigned_agents: toAssignedAgentsDto(params.assigned_agent),
+        })
+        await refetch()
+        return zoneFromDto(res.zone) ?? null
+      } catch {
+        return null
+      }
     },
     [refetch]
   )
@@ -89,29 +95,33 @@ export function useZones(): UseZonesResult {
       constraints?: string[]
       assigned_agent?: string
     }): Promise<Zone | null> => {
-      const res = await callTool('update_zone', {
-        zone_id: params.zone_id,
-        name: params.name ?? '',
-        pattern: params.pattern ?? '',
-        purpose: params.purpose ?? '',
-        constraints: params.constraints ?? [],
-        assigned_agent: params.assigned_agent ?? '',
-      })
-      if (res.isError || !res.content?.[0]?.text) return null
-      const data = JSON.parse(res.content[0].text) as { zone: Zone }
-      await refetch()
-      return data.zone ?? null
+      try {
+        const res = await updateZoneApi({
+          zone_id: params.zone_id,
+          name: params.name ?? '',
+          pattern: params.pattern ?? '',
+          purpose: params.purpose ?? '',
+          constraints: params.constraints ?? [],
+          assigned_agents: toAssignedAgentsDto(params.assigned_agent),
+        })
+        await refetch()
+        return zoneFromDto(res.zone) ?? null
+      } catch {
+        return null
+      }
     },
     [refetch]
   )
 
   const assignPathToZone = useCallback(
     async (zoneId: string, path: string): Promise<Zone | null> => {
-      const res = await callTool('assign_path_to_zone', { zone_id: zoneId, path })
-      if (res.isError || !res.content?.[0]?.text) return null
-      const data = JSON.parse(res.content[0].text) as { zone: Zone }
-      await refetch()
-      return data.zone ?? null
+      try {
+        const res = await assignPathToZoneApi({ zone_id: zoneId, path })
+        await refetch()
+        return zoneFromDto(res.zone) ?? null
+      } catch {
+        return null
+      }
     },
     [refetch]
   )

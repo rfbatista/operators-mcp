@@ -6,14 +6,20 @@ import (
 	"testing"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
-	"operators-mcp/internal/blueprint"
+	"operators-mcp/internal/adapter/in/mcp"
+	"operators-mcp/internal/adapter/out/filesystem"
+	"operators-mcp/internal/adapter/out/persistence/memory"
+	"operators-mcp/internal/application/blueprint"
 )
 
 func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
 	root := t.TempDir()
-	store := blueprint.NewStore()
+	zoneStore := memory.NewStore()
+	pathMatcher := filesystem.NewMatcher()
+	treeLister := filesystem.NewLister()
+	svc := blueprint.NewService(zoneStore, pathMatcher, treeLister)
 	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	blueprint.RegisterTools(server, root, store)
+	mcp.RegisterTools(server, root, svc)
 
 	t1, t2 := sdkmcp.NewInMemoryTransports()
 	if _, err := server.Connect(context.Background(), t1, nil); err != nil {
@@ -162,9 +168,12 @@ func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
 
 func TestGetZone_NotFound_StructuredError(t *testing.T) {
 	root := t.TempDir()
-	store := blueprint.NewStore()
+	zoneStore := memory.NewStore()
+	pathMatcher := filesystem.NewMatcher()
+	treeLister := filesystem.NewLister()
+	svc := blueprint.NewService(zoneStore, pathMatcher, treeLister)
 	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	blueprint.RegisterTools(server, root, store)
+	mcp.RegisterTools(server, root, svc)
 
 	t1, t2 := sdkmcp.NewInMemoryTransports()
 	if _, err := server.Connect(context.Background(), t1, nil); err != nil {
