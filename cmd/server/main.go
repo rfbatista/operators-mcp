@@ -12,7 +12,7 @@ import (
 	"operators-mcp/internal/adapter/in/mcp"
 	"operators-mcp/internal/adapter/in/ui"
 	"operators-mcp/internal/adapter/out/filesystem"
-	"operators-mcp/internal/adapter/out/persistence/memory"
+	"operators-mcp/internal/adapter/out/persistence/sqlite"
 	"operators-mcp/internal/application/blueprint"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -22,14 +22,20 @@ func main() {
 	devMode := flag.Bool("dev", false, "enable dev mode: proxy ui://designer to Vite dev server")
 	httpUI := flag.Bool("http", false, "expose the React UI on an HTTP server")
 	httpAddr := flag.String("http.addr", ":8080", "HTTP listen address for the UI (e.g. :8080)")
+	dbPath := flag.String("db", "data.db", "SQLite database path (e.g. data.db or :memory:)")
 	flag.Parse()
 
 	cfg := mcp.Config{DevMode: *devMode}
 	server := mcp.NewServer(cfg)
 
+	db, err := sqlite.Open(*dbPath)
+	if err != nil {
+		log.Fatalf("database: %v", err)
+	}
+
 	root, _ := os.Getwd()
-	projectStore := memory.NewProjectStore()
-	zoneStore := memory.NewStore()
+	projectStore := sqlite.NewProjectRepository(db)
+	zoneStore := sqlite.NewZoneRepository(db)
 	pathMatcher := filesystem.NewMatcher()
 	treeLister := filesystem.NewLister()
 	svc := blueprint.NewService(projectStore, zoneStore, pathMatcher, treeLister, root)

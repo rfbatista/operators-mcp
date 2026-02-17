@@ -38,3 +38,4 @@ Thumbs.db
 *.log
 *.tmp
 internal/adapter/in/ui/static
+data.db

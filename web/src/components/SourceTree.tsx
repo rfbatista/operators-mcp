@@ -58,9 +58,9 @@ function TreeNodeRow({
   return (
     <div style={{ marginLeft: depth * 12 }}>
       <div
-        className={`flex items-center gap-1 rounded px-1 py-0.5 ${
+        className={`flex items-center gap-1 rounded px-1 py-0.5 transition-colors ${
           isHighlighted ? 'bg-primary/20' : ''
-        }`}
+        } hover:bg-base-300/70`}
       >
         {hasChildren ? (
           <button
