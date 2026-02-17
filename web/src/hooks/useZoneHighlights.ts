@@ -11,18 +11,25 @@ export interface ZoneHighlights {
   error: string | null
 }
 
-export function useZoneHighlights(): ZoneHighlights & { refetch: () => void } {
+export function useZoneHighlights(projectId: string | null): ZoneHighlights & { refetch: () => void } {
   const [zones, setZones] = useState<Zone[]>([])
   const [highlightPaths, setHighlightPaths] = useState<Set<string>>(new Set())
   const [pathToZones, setPathToZones] = useState<Map<string, string[]>>(new Map())
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fetchHighlights = useCallback(async () => {
+    if (!projectId) {
+      setZones([])
+      setHighlightPaths(new Set())
+      setPathToZones(new Map())
+      setError(null)
+      return
+    }
     setLoading(true)
     setError(null)
     try {
-      const listRes = await listZones()
+      const listRes = await listZones({ project_id: projectId })
       const zs = (listRes.zones ?? []).map(zoneFromDto).filter(Boolean) as Zone[]
       setZones(zs)
 
@@ -38,7 +45,10 @@ export function useZoneHighlights(): ZoneHighlights & { refetch: () => void } {
           continue
         }
         try {
-          const matchRes = await listMatchingPaths({ pattern: zone.pattern })
+          const matchRes = await listMatchingPaths({
+            pattern: zone.pattern,
+            project_id: projectId,
+          })
           const paths = matchRes.paths ?? []
           for (const p of paths) {
             allPaths.add(p)
@@ -62,7 +72,7 @@ export function useZoneHighlights(): ZoneHighlights & { refetch: () => void } {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [projectId])
 
   useEffect(() => {
     fetchHighlights()

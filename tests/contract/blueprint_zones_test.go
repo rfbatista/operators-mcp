@@ -14,12 +14,13 @@ import (
 
 func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
 	root := t.TempDir()
+	projectStore := memory.NewProjectStore()
 	zoneStore := memory.NewStore()
 	pathMatcher := filesystem.NewMatcher()
 	treeLister := filesystem.NewLister()
-	svc := blueprint.NewService(zoneStore, pathMatcher, treeLister)
+	svc := blueprint.NewService(projectStore, zoneStore, pathMatcher, treeLister, root)
 	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	mcp.RegisterTools(server, root, svc)
+	mcp.RegisterTools(server, svc)
 
 	t1, t2 := sdkmcp.NewInMemoryTransports()
 	if _, err := server.Connect(context.Background(), t1, nil); err != nil {
@@ -34,10 +35,31 @@ func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
 
 	ctx := context.Background()
 
-	// list_zones empty
+	// create_project first
 	res, err := session.CallTool(ctx, &sdkmcp.CallToolParams{
+		Name:      "create_project",
+		Arguments: map[string]any{"name": "testproj", "root_dir": root},
+	})
+	if err != nil {
+		t.Fatalf("create_project: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("create_project error: %v", res.Content)
+	}
+	var projOut struct {
+		Project struct {
+			ID string `json:"id"`
+		} `json:"project"`
+	}
+	if err := json.Unmarshal([]byte(contentText(res.Content[0])), &projOut); err != nil {
+		t.Fatalf("unmarshal create_project: %v", err)
+	}
+	projectID := projOut.Project.ID
+
+	// list_zones empty
+	res, err = session.CallTool(ctx, &sdkmcp.CallToolParams{
 		Name:      "list_zones",
-		Arguments: map[string]any{},
+		Arguments: map[string]any{"project_id": projectID},
 	})
 	if err != nil {
 		t.Fatalf("list_zones: %v", err)
@@ -59,9 +81,10 @@ func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
 	res, err = session.CallTool(ctx, &sdkmcp.CallToolParams{
 		Name: "create_zone",
 		Arguments: map[string]any{
-			"name":   "backend",
-			"pattern": "cmd/.*",
-			"purpose": "Server and CLI",
+			"project_id": projectID,
+			"name":       "backend",
+			"pattern":    "cmd/.*",
+			"purpose":    "Server and CLI",
 		},
 	})
 	if err != nil {
@@ -153,7 +176,7 @@ func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
 	// list_zones now has one
 	res, err = session.CallTool(ctx, &sdkmcp.CallToolParams{
 		Name:      "list_zones",
-		Arguments: map[string]any{},
+		Arguments: map[string]any{"project_id": projectID},
 	})
 	if err != nil {
 		t.Fatalf("list_zones: %v", err)
@@ -168,12 +191,13 @@ func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
 
 func TestGetZone_NotFound_StructuredError(t *testing.T) {
 	root := t.TempDir()
+	projectStore := memory.NewProjectStore()
 	zoneStore := memory.NewStore()
 	pathMatcher := filesystem.NewMatcher()
 	treeLister := filesystem.NewLister()
-	svc := blueprint.NewService(zoneStore, pathMatcher, treeLister)
+	svc := blueprint.NewService(projectStore, zoneStore, pathMatcher, treeLister, root)
 	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	mcp.RegisterTools(server, root, svc)
+	mcp.RegisterTools(server, svc)
 
 	t1, t2 := sdkmcp.NewInMemoryTransports()
 	if _, err := server.Connect(context.Background(), t1, nil); err != nil {

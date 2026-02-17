@@ -6,9 +6,18 @@ export interface TreeNode {
   children?: TreeNode[]
 }
 
+/** Project from list_projects / get_project - defines the directory root for tree, paths, and zones */
+export interface Project {
+  id: string
+  name: string
+  root_dir: string
+  ignored_paths: string[]
+}
+
 /** Zone from list_zones / get_zone */
 export interface Zone {
   id: string
+  project_id: string
   name: string
   pattern: string
   purpose: string

@@ -34,19 +34,21 @@ func (s *Store) Get(id string) *domain.Zone {
 	return cloneZone(z)
 }
 
-// List returns all zones.
-func (s *Store) List() []*domain.Zone {
+// ListByProject returns all zones for the given project.
+func (s *Store) ListByProject(projectID string) []*domain.Zone {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	out := make([]*domain.Zone, 0, len(s.zones))
+	out := make([]*domain.Zone, 0)
 	for _, z := range s.zones {
-		out = append(out, cloneZone(z))
+		if z.ProjectID == projectID {
+			out = append(out, cloneZone(z))
+		}
 	}
 	return out
 }
 
-// Create creates a zone and returns it with generated id. Name must be non-empty.
-func (s *Store) Create(name, pattern, purpose string, constraints []string, agents []domain.Agent) (*domain.Zone, error) {
+// Create creates a zone in the given project and returns it with generated id. Name must be non-empty.
+func (s *Store) Create(projectID, name, pattern, purpose string, constraints []string, agents []domain.Agent) (*domain.Zone, error) {
 	if name == "" {
 		return nil, &domain.StructuredError{Code: "INVALID_NAME", Message: "zone name is required"}
 	}
@@ -56,6 +58,7 @@ func (s *Store) Create(name, pattern, purpose string, constraints []string, agen
 	}
 	z := &domain.Zone{
 		ID:             id,
+		ProjectID:      projectID,
 		Name:           name,
 		Pattern:        pattern,
 		Purpose:        purpose,

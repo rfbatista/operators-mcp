@@ -19,58 +19,47 @@ export function AssignToZone({
   const [selectedId, setSelectedId] = useState<string>('')
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.3)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
-      role="dialog"
-      aria-label="Assign to zone"
-    >
+    <dialog className="modal modal-open" open role="dialog" aria-label="Assign to zone">
       <div
-        style={{
-          background: 'white',
-          padding: 16,
-          borderRadius: 8,
-          minWidth: 280,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        }}
-      >
-        <h3>Assign to zone</h3>
-        <p style={{ fontSize: 12, color: '#666' }}>Path: {path}</p>
-        <select
-          value={selectedId}
-          onChange={(e) => setSelectedId(e.target.value)}
-          style={{ width: '100%', padding: 8, marginBottom: 8 }}
-        >
-          <option value="">Select a zone…</option>
-          {zones.map((z) => (
-            <option key={z.id} value={z.id}>
-              {z.name}
-            </option>
-          ))}
-        </select>
-        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        className="modal-backdrop bg-black/50"
+        aria-hidden="true"
+        onClick={onCancel}
+        onKeyDown={(e) => e.key === 'Escape' && onCancel()}
+      />
+      <div className="modal-box">
+        <h3 className="text-lg font-bold">Assign to zone</h3>
+        <p className="text-sm text-base-content/70">Path: {path}</p>
+        <div className="form-control mt-2 w-full">
+          <select
+            value={selectedId}
+            onChange={(e) => setSelectedId(e.target.value)}
+            className="select select-bordered w-full"
+          >
+            <option value="">Select a zone…</option>
+            {zones.map((z) => (
+              <option key={z.id} value={z.id}>
+                {z.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="modal-action">
           <button
             type="button"
+            className="btn btn-primary"
             onClick={() => selectedId && onSelect(selectedId)}
             disabled={!selectedId}
           >
             Assign
           </button>
-          <button type="button" onClick={onCreateNew}>
+          <button type="button" className="btn btn-outline" onClick={onCreateNew}>
             Create new zone
           </button>
-          <button type="button" onClick={onCancel}>
+          <button type="button" className="btn btn-ghost" onClick={onCancel}>
             Cancel
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   )
 }

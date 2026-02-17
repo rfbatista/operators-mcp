@@ -12,17 +12,22 @@ import (
 
 // Handler exposes blueprint use cases as HTTP endpoints (same contract as MCP tools).
 type Handler struct {
-	svc         *blueprint.Service
-	defaultRoot string
+	svc *blueprint.Service
 }
 
-// NewHandler returns an HTTP handler that serves /api/list_tree, /api/list_zones, etc.
-func NewHandler(svc *blueprint.Service, defaultRoot string) *Handler {
-	return &Handler{svc: svc, defaultRoot: defaultRoot}
+// NewHandler returns an HTTP handler that serves /api/list_tree, /api/list_zones, /api/list_projects, etc.
+func NewHandler(svc *blueprint.Service) *Handler {
+	return &Handler{svc: svc}
 }
 
 // Mount registers all API routes on mux under the given prefix (e.g. "/api").
 func (h *Handler) Mount(mux *http.ServeMux, prefix string) {
+	mux.HandleFunc(prefix+"/list_projects", h.handleListProjects)
+	mux.HandleFunc(prefix+"/get_project", h.handleGetProject)
+	mux.HandleFunc(prefix+"/create_project", h.handleCreateProject)
+	mux.HandleFunc(prefix+"/update_project", h.handleUpdateProject)
+	mux.HandleFunc(prefix+"/add_ignored_path", h.handleAddIgnoredPath)
+	mux.HandleFunc(prefix+"/remove_ignored_path", h.handleRemoveIgnoredPath)
 	mux.HandleFunc(prefix+"/list_tree", h.handleListTree)
 	mux.HandleFunc(prefix+"/list_zones", h.handleListZones)
 	mux.HandleFunc(prefix+"/list_matching_paths", h.handleListMatchingPaths)
@@ -30,6 +35,109 @@ func (h *Handler) Mount(mux *http.ServeMux, prefix string) {
 	mux.HandleFunc(prefix+"/create_zone", h.handleCreateZone)
 	mux.HandleFunc(prefix+"/update_zone", h.handleUpdateZone)
 	mux.HandleFunc(prefix+"/assign_path_to_zone", h.handleAssignPathToZone)
+}
+
+func (h *Handler) handleListProjects(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	projects := h.svc.ListProjects()
+	writeJSON(w, mcp.ListProjectsOut{Projects: mcp.ProjectsToDTO(projects)})
+}
+
+func (h *Handler) handleGetProject(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var in mcp.GetProjectIn
+	if r.Method == http.MethodPost {
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			writeJSONError(w, "invalid body", http.StatusBadRequest)
+			return
+		}
+	} else {
+		in.ProjectID = r.URL.Query().Get("project_id")
+	}
+	p := h.svc.GetProject(in.ProjectID)
+	if p == nil {
+		writeJSONError(w, "project not found", http.StatusNotFound)
+		return
+	}
+	writeJSON(w, mcp.GetProjectOut{Project: mcp.ProjectToDTO(p)})
+}
+
+func (h *Handler) handleCreateProject(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var in mcp.CreateProjectIn
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeJSONError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	p, err := h.svc.CreateProject(in.Name, in.RootDir)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	writeJSON(w, mcp.CreateProjectOut{Project: mcp.ProjectToDTO(p)})
+}
+
+func (h *Handler) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var in mcp.UpdateProjectIn
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeJSONError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	p, err := h.svc.UpdateProject(in.ProjectID, in.Name, in.RootDir)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	writeJSON(w, mcp.UpdateProjectOut{Project: mcp.ProjectToDTO(p)})
+}
+
+func (h *Handler) handleAddIgnoredPath(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var in mcp.AddIgnoredPathIn
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeJSONError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	p, err := h.svc.AddIgnoredPath(in.ProjectID, in.Path)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	writeJSON(w, mcp.AddIgnoredPathOut{Project: mcp.ProjectToDTO(p)})
+}
+
+func (h *Handler) handleRemoveIgnoredPath(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var in mcp.RemoveIgnoredPathIn
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeJSONError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	p, err := h.svc.RemoveIgnoredPath(in.ProjectID, in.Path)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	writeJSON(w, mcp.RemoveIgnoredPathOut{Project: mcp.ProjectToDTO(p)})
 }
 
 func (h *Handler) handleListTree(w http.ResponseWriter, r *http.Request) {
@@ -45,12 +153,9 @@ func (h *Handler) handleListTree(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		in.Root = r.URL.Query().Get("root")
+		in.ProjectID = r.URL.Query().Get("project_id")
 	}
-	root := h.defaultRoot
-	if in.Root != "" {
-		root = in.Root
-	}
-	tree, err := h.svc.ListTree(root)
+	tree, err := h.svc.ListTree(in.Root, in.ProjectID)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -63,7 +168,20 @@ func (h *Handler) handleListZones(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	zones := h.svc.ListZones()
+	var in mcp.ListZonesIn
+	if r.Method == http.MethodPost {
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			writeJSONError(w, "invalid body", http.StatusBadRequest)
+			return
+		}
+	} else {
+		in.ProjectID = r.URL.Query().Get("project_id")
+	}
+	if in.ProjectID == "" {
+		writeJSONError(w, "project_id is required", http.StatusBadRequest)
+		return
+	}
+	zones := h.svc.ListZones(in.ProjectID)
 	writeJSON(w, mcp.ListZonesOut{Zones: mcp.ZonesToDTO(zones)})
 }
 
@@ -81,12 +199,9 @@ func (h *Handler) handleListMatchingPaths(w http.ResponseWriter, r *http.Request
 	} else {
 		in.Pattern = r.URL.Query().Get("pattern")
 		in.Root = r.URL.Query().Get("root")
+		in.ProjectID = r.URL.Query().Get("project_id")
 	}
-	root := h.defaultRoot
-	if in.Root != "" {
-		root = in.Root
-	}
-	paths, err := h.svc.ListMatchingPaths(root, in.Pattern)
+	paths, err := h.svc.ListMatchingPaths(in.Root, in.ProjectID, in.Pattern)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -126,7 +241,7 @@ func (h *Handler) handleCreateZone(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, "invalid body", http.StatusBadRequest)
 		return
 	}
-	z, err := h.svc.CreateZone(in.Name, in.Pattern, in.Purpose, in.Constraints, mcp.DTOToAgents(in.AssignedAgents))
+	z, err := h.svc.CreateZone(in.ProjectID, in.Name, in.Pattern, in.Purpose, in.Constraints, mcp.DTOToAgents(in.AssignedAgents))
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -185,10 +300,10 @@ func writeDomainError(w http.ResponseWriter, err error) {
 	var se *domain.StructuredError
 	if errors.As(err, &se) {
 		switch se.Code {
-		case "ZONE_NOT_FOUND":
+		case "ZONE_NOT_FOUND", "PROJECT_NOT_FOUND":
 			writeJSONError(w, se.Message, http.StatusNotFound)
 			return
-		case "INVALID_PATTERN":
+		case "INVALID_PATTERN", "INVALID_NAME", "INVALID_ROOT", "INVALID_PATH":
 			writeJSONError(w, se.Message, http.StatusBadRequest)
 			return
 		}

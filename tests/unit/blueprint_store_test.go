@@ -8,15 +8,23 @@ import (
 )
 
 func TestStore_CreateListGetUpdateAssignPath(t *testing.T) {
+	ps := memory.NewProjectStore()
+	p, err := ps.Create("myproject", "/some/root")
+	if err != nil {
+		t.Fatalf("Create project: %v", err)
+	}
 	s := memory.NewStore()
 
 	agents1 := []domain.Agent{{ID: "agent-1", Name: "Agent 1"}}
-	z, err := s.Create("backend", "cmd/.*", "Server code", []string{"no UI"}, agents1)
+	z, err := s.Create(p.ID, "backend", "cmd/.*", "Server code", []string{"no UI"}, agents1)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	if z.ID == "" {
 		t.Error("expected id")
+	}
+	if z.ProjectID != p.ID {
+		t.Errorf("ProjectID: got %q", z.ProjectID)
 	}
 	if z.Name != "backend" {
 		t.Errorf("name: got %q", z.Name)
@@ -25,9 +33,9 @@ func TestStore_CreateListGetUpdateAssignPath(t *testing.T) {
 		t.Errorf("AssignedAgents: got %v", z.AssignedAgents)
 	}
 
-	list := s.List()
+	list := s.ListByProject(p.ID)
 	if len(list) != 1 {
-		t.Fatalf("List: got %d zones", len(list))
+		t.Fatalf("ListByProject: got %d zones", len(list))
 	}
 	if list[0].Name != "backend" {
 		t.Errorf("List[0].Name: got %q", list[0].Name)
@@ -63,8 +71,10 @@ func TestStore_CreateListGetUpdateAssignPath(t *testing.T) {
 }
 
 func TestStore_CreateEmptyName_Error(t *testing.T) {
+	ps := memory.NewProjectStore()
+	p, _ := ps.Create("p", "/root")
 	s := memory.NewStore()
-	_, err := s.Create("", "x", "", nil, nil)
+	_, err := s.Create(p.ID, "", "x", "", nil, nil)
 	if err == nil {
 		t.Fatal("expected error for empty name")
 	}

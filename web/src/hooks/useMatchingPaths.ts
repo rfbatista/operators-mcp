@@ -13,7 +13,7 @@ export interface UseMatchingPathsResult {
   invalidPattern: boolean
 }
 
-export function useMatchingPaths(): UseMatchingPathsResult {
+export function useMatchingPaths(projectId: string | null): UseMatchingPathsResult {
   const [pattern, setPattern] = useState('')
   const [paths, setPaths] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -21,7 +21,7 @@ export function useMatchingPaths(): UseMatchingPathsResult {
   const [invalidPattern, setInvalidPattern] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const fetchPaths = useCallback(async (p: string) => {
+  const fetchPaths = useCallback(async (p: string, projectId: string | null) => {
     if (!p.trim()) {
       setPaths([])
       setInvalidPattern(false)
@@ -32,7 +32,10 @@ export function useMatchingPaths(): UseMatchingPathsResult {
     setError(null)
     setInvalidPattern(false)
     try {
-      const res = await listMatchingPaths({ pattern: p })
+      const res = await listMatchingPaths({
+        pattern: p,
+        ...(projectId ? { project_id: projectId } : {}),
+      })
       setPaths(res.paths ?? [])
     } catch (e) {
       const msg = e instanceof Error ? e.message : ''
@@ -48,7 +51,7 @@ export function useMatchingPaths(): UseMatchingPathsResult {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [projectId])
 
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current)
@@ -61,12 +64,12 @@ export function useMatchingPaths(): UseMatchingPathsResult {
     }
     timerRef.current = setTimeout(() => {
       timerRef.current = null
-      fetchPaths(pattern)
+      fetchPaths(pattern, projectId)
     }, DEBOUNCE_MS)
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [pattern, fetchPaths])
+  }, [pattern, projectId, fetchPaths])
 
   return {
     pattern,

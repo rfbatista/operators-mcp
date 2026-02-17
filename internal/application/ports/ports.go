@@ -2,12 +2,23 @@ package ports
 
 import "operators-mcp/internal/domain"
 
+// ProjectRepository is the outbound port for persisting and retrieving projects.
+// A project defines the directory root that everything is based on.
+type ProjectRepository interface {
+	Get(id string) *domain.Project
+	List() []*domain.Project
+	Create(name, rootDir string) (*domain.Project, error)
+	Update(id, name, rootDir string) (*domain.Project, error)
+	AddIgnoredPath(projectID, path string) (*domain.Project, error)
+	RemoveIgnoredPath(projectID, path string) (*domain.Project, error)
+}
+
 // ZoneRepository is the outbound port for persisting and retrieving zones.
-// Implemented by adapters (e.g. in-memory store, future DB).
+// Zones are scoped to a project. Implemented by adapters (e.g. in-memory store, future DB).
 type ZoneRepository interface {
 	Get(id string) *domain.Zone
-	List() []*domain.Zone
-	Create(name, pattern, purpose string, constraints []string, agents []domain.Agent) (*domain.Zone, error)
+	ListByProject(projectID string) []*domain.Zone
+	Create(projectID, name, pattern, purpose string, constraints []string, agents []domain.Agent) (*domain.Zone, error)
 	Update(id, name, pattern, purpose string, constraints []string, agents []domain.Agent) (*domain.Zone, error)
 	AssignPath(zoneID, path string) (*domain.Zone, error)
 }

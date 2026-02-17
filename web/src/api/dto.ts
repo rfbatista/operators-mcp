@@ -12,6 +12,7 @@ export interface AgentDto {
 /** Zone DTO (API response shape) */
 export interface ZoneDto {
   id: string
+  project_id: string
   name: string
   pattern: string
   purpose: string
@@ -33,15 +34,34 @@ export interface ListTreeResponseDto {
   tree: TreeNodeDto
 }
 
+/** Project DTO (API response shape) */
+export interface ProjectDto {
+  id: string
+  name: string
+  root_dir: string
+  ignored_paths?: string[]
+}
+
+/** Response: list_projects */
+export interface ListProjectsResponseDto {
+  projects: ProjectDto[]
+}
+
 /** Request: list_tree (query or body) */
 export interface ListTreeRequestDto {
   root?: string
+  project_id?: string
   depth?: number
 }
 
 /** Response: list_zones */
 export interface ListZonesResponseDto {
   zones: ZoneDto[]
+}
+
+/** Request: list_zones */
+export interface ListZonesRequestDto {
+  project_id: string
 }
 
 /** Response: list_matching_paths */
@@ -53,6 +73,40 @@ export interface ListMatchingPathsResponseDto {
 export interface ListMatchingPathsRequestDto {
   pattern: string
   root?: string
+  project_id?: string
+}
+
+/** Request: create_project */
+export interface CreateProjectRequestDto {
+  name?: string
+  root_dir: string
+}
+
+/** Response: create_project */
+export interface CreateProjectResponseDto {
+  project: ProjectDto
+}
+
+/** Request: add_ignored_path */
+export interface AddIgnoredPathRequestDto {
+  project_id: string
+  path: string
+}
+
+/** Response: add_ignored_path */
+export interface AddIgnoredPathResponseDto {
+  project: ProjectDto
+}
+
+/** Request: remove_ignored_path */
+export interface RemoveIgnoredPathRequestDto {
+  project_id: string
+  path: string
+}
+
+/** Response: remove_ignored_path */
+export interface RemoveIgnoredPathResponseDto {
+  project: ProjectDto
 }
 
 /** Response: get_zone */
@@ -67,6 +121,7 @@ export interface GetZoneRequestDto {
 
 /** Request: create_zone */
 export interface CreateZoneRequestDto {
+  project_id: string
   name: string
   pattern?: string
   purpose?: string

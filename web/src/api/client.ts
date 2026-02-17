@@ -7,8 +7,16 @@ import type {
   ListTreeRequestDto,
   ListTreeResponseDto,
   ListZonesResponseDto,
+  ListZonesRequestDto,
   ListMatchingPathsRequestDto,
   ListMatchingPathsResponseDto,
+  ListProjectsResponseDto,
+  CreateProjectRequestDto,
+  CreateProjectResponseDto,
+  AddIgnoredPathRequestDto,
+  AddIgnoredPathResponseDto,
+  RemoveIgnoredPathRequestDto,
+  RemoveIgnoredPathResponseDto,
   GetZoneRequestDto,
   GetZoneResponseDto,
   CreateZoneRequestDto,
@@ -55,28 +63,69 @@ export class ApiError extends Error {
   }
 }
 
-/** GET list_tree (optional query: root) */
+/** GET list_projects */
+export async function listProjects(): Promise<ListProjectsResponseDto> {
+  return request<ListProjectsResponseDto>('/list_projects')
+}
+
+/** POST create_project */
+export async function createProject(
+  body: CreateProjectRequestDto
+): Promise<CreateProjectResponseDto> {
+  return request<CreateProjectResponseDto>('/create_project', {
+    method: 'POST',
+    body,
+  })
+}
+
+/** POST add_ignored_path */
+export async function addIgnoredPath(
+  body: AddIgnoredPathRequestDto
+): Promise<AddIgnoredPathResponseDto> {
+  return request<AddIgnoredPathResponseDto>('/add_ignored_path', {
+    method: 'POST',
+    body,
+  })
+}
+
+/** POST remove_ignored_path */
+export async function removeIgnoredPath(
+  body: RemoveIgnoredPathRequestDto
+): Promise<RemoveIgnoredPathResponseDto> {
+  return request<RemoveIgnoredPathResponseDto>('/remove_ignored_path', {
+    method: 'POST',
+    body,
+  })
+}
+
+/** GET list_tree (optional query: root, project_id) */
 export async function listTree(
   req: ListTreeRequestDto = {}
 ): Promise<ListTreeResponseDto> {
   const params = new URLSearchParams()
   if (req.root != null && req.root !== '') params.set('root', req.root)
+  if (req.project_id != null && req.project_id !== '') params.set('project_id', req.project_id)
   const q = params.toString()
   return request<ListTreeResponseDto>(`/list_tree${q ? `?${q}` : ''}`)
 }
 
-/** GET list_zones */
-export async function listZones(): Promise<ListZonesResponseDto> {
-  return request<ListZonesResponseDto>('/list_zones')
+/** GET list_zones?project_id=... */
+export async function listZones(
+  req: ListZonesRequestDto
+): Promise<ListZonesResponseDto> {
+  const params = new URLSearchParams()
+  params.set('project_id', req.project_id)
+  return request<ListZonesResponseDto>(`/list_zones?${params.toString()}`)
 }
 
-/** GET list_matching_paths?pattern=... (optional: root) */
+/** GET list_matching_paths?pattern=... (optional: root, project_id) */
 export async function listMatchingPaths(
   req: ListMatchingPathsRequestDto
 ): Promise<ListMatchingPathsResponseDto> {
   const params = new URLSearchParams()
   params.set('pattern', req.pattern)
   if (req.root != null && req.root !== '') params.set('root', req.root)
+  if (req.project_id != null && req.project_id !== '') params.set('project_id', req.project_id)
   return request<ListMatchingPathsResponseDto>(
     `/list_matching_paths?${params.toString()}`
   )

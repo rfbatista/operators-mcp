@@ -28,11 +28,12 @@ func main() {
 	server := mcp.NewServer(cfg)
 
 	root, _ := os.Getwd()
+	projectStore := memory.NewProjectStore()
 	zoneStore := memory.NewStore()
 	pathMatcher := filesystem.NewMatcher()
 	treeLister := filesystem.NewLister()
-	svc := blueprint.NewService(zoneStore, pathMatcher, treeLister)
-	mcp.RegisterTools(server, root, svc)
+	svc := blueprint.NewService(projectStore, zoneStore, pathMatcher, treeLister, root)
+	mcp.RegisterTools(server, svc)
 
 	if *devMode {
 		server.AddResource(&sdkmcp.Resource{
@@ -66,7 +67,7 @@ func main() {
 			log.Fatalf("UI handler: %v", err)
 		}
 		mux := http.NewServeMux()
-		apiHandler := httpapi.NewHandler(svc, root)
+		apiHandler := httpapi.NewHandler(svc)
 		apiHandler.Mount(mux, "/api")
 		mux.Handle("/mcp", mcpHandler)
 		mux.Handle("/mcp/", mcpHandler)

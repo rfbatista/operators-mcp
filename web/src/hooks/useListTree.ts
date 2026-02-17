@@ -9,16 +9,24 @@ export interface ListTreeState {
   error: string | null
 }
 
-export function useListTree(root?: string): ListTreeState & { refetch: () => void } {
+export function useListTree(projectId: string | null, root?: string): ListTreeState & { refetch: () => void } {
   const [tree, setTree] = useState<TreeNode | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fetchTree = useCallback(async () => {
+    if (!projectId && (root == null || root === '')) {
+      setTree(null)
+      setLoading(false)
+      setError(null)
+      return
+    }
     setLoading(true)
     setError(null)
     try {
-      const res = await listTree(root != null ? { root } : {})
+      const res = await listTree(
+        projectId ? { project_id: projectId } : root != null ? { root } : {}
+      )
       setTree(treeNodeFromDto(res.tree) ?? null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load tree')
@@ -26,7 +34,7 @@ export function useListTree(root?: string): ListTreeState & { refetch: () => voi
     } finally {
       setLoading(false)
     }
-  }, [root])
+  }, [projectId, root])
 
   useEffect(() => {
     fetchTree()

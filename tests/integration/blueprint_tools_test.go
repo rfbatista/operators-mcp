@@ -22,12 +22,13 @@ func TestBlueprintTools_WithDesignerResource(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(root, "cmd"), 0755)
 	_ = os.WriteFile(filepath.Join(root, "go.mod"), []byte("module test\n"), 0644)
 
+	projectStore := memory.NewProjectStore()
 	zoneStore := memory.NewStore()
 	pathMatcher := filesystem.NewMatcher()
 	treeLister := filesystem.NewLister()
-	svc := blueprint.NewService(zoneStore, pathMatcher, treeLister)
+	svc := blueprint.NewService(projectStore, zoneStore, pathMatcher, treeLister, root)
 	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	mcp.RegisterTools(server, root, svc)
+	mcp.RegisterTools(server, svc)
 	// Also register designer resource so server has both
 	server.AddResource(&sdkmcp.Resource{URI: ui.DesignerURI, Name: "Designer", MIMEType: "text/html"},
 		ui.NewDesignerResourceHandler(false, nil))
@@ -75,10 +76,15 @@ func TestBlueprintTools_WithDesignerResource(t *testing.T) {
 		t.Errorf("list_tree root name: got %q", treeOut.Tree.Name)
 	}
 
+	// Create a project so we can list zones
+	p, err := svc.CreateProject("testproj", root)
+	if err != nil {
+		t.Fatalf("CreateProject: %v", err)
+	}
 	// Call list_zones
 	res, err = session.CallTool(ctx, &sdkmcp.CallToolParams{
 		Name:      "list_zones",
-		Arguments: map[string]any{},
+		Arguments: map[string]any{"project_id": p.ID},
 	})
 	if err != nil {
 		t.Fatalf("list_zones: %v", err)

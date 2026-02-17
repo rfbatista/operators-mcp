@@ -10,8 +10,9 @@ import (
 
 // ListMatchingPathsIn is the input for list_matching_paths.
 type ListMatchingPathsIn struct {
-	Pattern string `json:"pattern" jsonschema:"required"`
-	Root    string `json:"root,omitempty"`
+	Pattern   string `json:"pattern" jsonschema:"required"`
+	Root      string `json:"root,omitempty"`
+	ProjectID string `json:"project_id,omitempty"`
 }
 
 // ListMatchingPathsOut is the output for list_matching_paths.
@@ -21,8 +22,9 @@ type ListMatchingPathsOut struct {
 
 // ListTreeIn is the input for list_tree.
 type ListTreeIn struct {
-	Root  string `json:"root,omitempty"`
-	Depth int    `json:"depth,omitempty"`
+	Root      string `json:"root,omitempty"`
+	ProjectID string `json:"project_id,omitempty"`
+	Depth     int    `json:"depth,omitempty"`
 }
 
 // ListTreeOut is the output for list_tree.
@@ -30,9 +32,74 @@ type ListTreeOut struct {
 	Tree any `json:"tree"`
 }
 
+// ListZonesIn is the input for list_zones.
+type ListZonesIn struct {
+	ProjectID string `json:"project_id" jsonschema:"required"`
+}
+
 // ListZonesOut is the output for list_zones.
 type ListZonesOut struct {
 	Zones []*ZoneDTO `json:"zones"`
+}
+
+// ListProjectsOut is the output for list_projects.
+type ListProjectsOut struct {
+	Projects []*ProjectDTO `json:"projects"`
+}
+
+// GetProjectIn is the input for get_project.
+type GetProjectIn struct {
+	ProjectID string `json:"project_id" jsonschema:"required"`
+}
+
+// GetProjectOut is the output for get_project.
+type GetProjectOut struct {
+	Project *ProjectDTO `json:"project"`
+}
+
+// CreateProjectIn is the input for create_project.
+type CreateProjectIn struct {
+	Name    string `json:"name,omitempty"`
+	RootDir string `json:"root_dir" jsonschema:"required"`
+}
+
+// CreateProjectOut is the output for create_project.
+type CreateProjectOut struct {
+	Project *ProjectDTO `json:"project"`
+}
+
+// UpdateProjectIn is the input for update_project.
+type UpdateProjectIn struct {
+	ProjectID string `json:"project_id" jsonschema:"required"`
+	Name      string `json:"name,omitempty"`
+	RootDir   string `json:"root_dir,omitempty"`
+}
+
+// UpdateProjectOut is the output for update_project.
+type UpdateProjectOut struct {
+	Project *ProjectDTO `json:"project"`
+}
+
+// AddIgnoredPathIn is the input for add_ignored_path.
+type AddIgnoredPathIn struct {
+	ProjectID string `json:"project_id" jsonschema:"required"`
+	Path      string `json:"path" jsonschema:"required"`
+}
+
+// AddIgnoredPathOut is the output for add_ignored_path.
+type AddIgnoredPathOut struct {
+	Project *ProjectDTO `json:"project"`
+}
+
+// RemoveIgnoredPathIn is the input for remove_ignored_path.
+type RemoveIgnoredPathIn struct {
+	ProjectID string `json:"project_id" jsonschema:"required"`
+	Path      string `json:"path" jsonschema:"required"`
+}
+
+// RemoveIgnoredPathOut is the output for remove_ignored_path.
+type RemoveIgnoredPathOut struct {
+	Project *ProjectDTO `json:"project"`
 }
 
 // GetZoneIn is the input for get_zone.
@@ -47,11 +114,12 @@ type GetZoneOut struct {
 
 // CreateZoneIn is the input for create_zone.
 type CreateZoneIn struct {
-	Name           string      `json:"name" jsonschema:"required"`
-	Pattern        string      `json:"pattern,omitempty"`
-	Purpose        string      `json:"purpose,omitempty"`
-	Constraints    []string    `json:"constraints,omitempty"`
-	AssignedAgents []AgentDTO  `json:"assigned_agents,omitempty"`
+	ProjectID      string     `json:"project_id" jsonschema:"required"`
+	Name           string     `json:"name" jsonschema:"required"`
+	Pattern        string     `json:"pattern,omitempty"`
+	Purpose        string     `json:"purpose,omitempty"`
+	Constraints    []string   `json:"constraints,omitempty"`
+	AssignedAgents []AgentDTO `json:"assigned_agents,omitempty"`
 }
 
 // CreateZoneOut is the output for create_zone.
@@ -86,16 +154,75 @@ type AssignPathToZoneOut struct {
 }
 
 // RegisterTools registers all blueprint MCP tools on the server, wiring them to the application service.
-func RegisterTools(server *sdkmcp.Server, defaultRoot string, svc *blueprint.Service) {
+func RegisterTools(server *sdkmcp.Server, svc *blueprint.Service) {
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "list_projects",
+		Description: "Return all projects. A project defines the directory root that everything (tree, zones, paths) is based on.",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, in struct{}) (*sdkmcp.CallToolResult, ListProjectsOut, error) {
+		projects := svc.ListProjects()
+		return nil, ListProjectsOut{Projects: ProjectsToDTO(projects)}, nil
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "get_project",
+		Description: "Return one project by id.",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, in GetProjectIn) (*sdkmcp.CallToolResult, GetProjectOut, error) {
+		p := svc.GetProject(in.ProjectID)
+		if p == nil {
+			return nil, GetProjectOut{}, &domain.StructuredError{Code: "PROJECT_NOT_FOUND", Message: "project not found"}
+		}
+		return nil, GetProjectOut{Project: ProjectToDTO(p)}, nil
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "create_project",
+		Description: "Create a project with a name and root directory. The root is the base path for list_tree, list_matching_paths, and zones.",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, in CreateProjectIn) (*sdkmcp.CallToolResult, CreateProjectOut, error) {
+		p, err := svc.CreateProject(in.Name, in.RootDir)
+		if err != nil {
+			return nil, CreateProjectOut{}, err
+		}
+		return nil, CreateProjectOut{Project: ProjectToDTO(p)}, nil
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "update_project",
+		Description: "Update a project's name and/or root_dir.",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, in UpdateProjectIn) (*sdkmcp.CallToolResult, UpdateProjectOut, error) {
+		p, err := svc.UpdateProject(in.ProjectID, in.Name, in.RootDir)
+		if err != nil {
+			return nil, UpdateProjectOut{}, err
+		}
+		return nil, UpdateProjectOut{Project: ProjectToDTO(p)}, nil
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "add_ignored_path",
+		Description: "Add a file or directory path to the project's ignore list. Ignored paths are hidden from the tree view.",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, in AddIgnoredPathIn) (*sdkmcp.CallToolResult, AddIgnoredPathOut, error) {
+		p, err := svc.AddIgnoredPath(in.ProjectID, in.Path)
+		if err != nil {
+			return nil, AddIgnoredPathOut{}, err
+		}
+		return nil, AddIgnoredPathOut{Project: ProjectToDTO(p)}, nil
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "remove_ignored_path",
+		Description: "Remove a path from the project's ignore list so it is shown again in the tree view.",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, in RemoveIgnoredPathIn) (*sdkmcp.CallToolResult, RemoveIgnoredPathOut, error) {
+		p, err := svc.RemoveIgnoredPath(in.ProjectID, in.Path)
+		if err != nil {
+			return nil, RemoveIgnoredPathOut{}, err
+		}
+		return nil, RemoveIgnoredPathOut{Project: ProjectToDTO(p)}, nil
+	})
+
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "list_matching_paths",
-		Description: "Return paths under project root that match the given regex pattern.",
+		Description: "Return paths under project root that match the given regex pattern. Use project_id or root to specify the base directory.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, in ListMatchingPathsIn) (*sdkmcp.CallToolResult, ListMatchingPathsOut, error) {
-		r := defaultRoot
-		if in.Root != "" {
-			r = in.Root
-		}
-		paths, err := svc.ListMatchingPaths(r, in.Pattern)
+		paths, err := svc.ListMatchingPaths(in.Root, in.ProjectID, in.Pattern)
 		if err != nil {
 			return nil, ListMatchingPathsOut{}, err
 		}
@@ -104,13 +231,9 @@ func RegisterTools(server *sdkmcp.Server, defaultRoot string, svc *blueprint.Ser
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "list_tree",
-		Description: "Return the project's folder structure as a hierarchical tree.",
+		Description: "Return the project's folder structure as a hierarchical tree. Use project_id or root to specify the base directory.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, in ListTreeIn) (*sdkmcp.CallToolResult, ListTreeOut, error) {
-		r := defaultRoot
-		if in.Root != "" {
-			r = in.Root
-		}
-		tree, err := svc.ListTree(r)
+		tree, err := svc.ListTree(in.Root, in.ProjectID)
 		if err != nil {
 			return nil, ListTreeOut{}, err
 		}
@@ -119,9 +242,9 @@ func RegisterTools(server *sdkmcp.Server, defaultRoot string, svc *blueprint.Ser
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "list_zones",
-		Description: "Return all zones.",
-	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, in struct{}) (*sdkmcp.CallToolResult, ListZonesOut, error) {
-		zones := svc.ListZones()
+		Description: "Return all zones for the given project.",
+	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, in ListZonesIn) (*sdkmcp.CallToolResult, ListZonesOut, error) {
+		zones := svc.ListZones(in.ProjectID)
 		return nil, ListZonesOut{Zones: ZonesToDTO(zones)}, nil
 	})
 
@@ -138,9 +261,9 @@ func RegisterTools(server *sdkmcp.Server, defaultRoot string, svc *blueprint.Ser
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "create_zone",
-		Description: "Create a zone with optional metadata and pattern.",
+		Description: "Create a zone in the given project with optional metadata and pattern.",
 	}, func(ctx context.Context, req *sdkmcp.CallToolRequest, in CreateZoneIn) (*sdkmcp.CallToolResult, CreateZoneOut, error) {
-		z, err := svc.CreateZone(in.Name, in.Pattern, in.Purpose, in.Constraints, DTOToAgents(in.AssignedAgents))
+		z, err := svc.CreateZone(in.ProjectID, in.Name, in.Pattern, in.Purpose, in.Constraints, DTOToAgents(in.AssignedAgents))
 		if err != nil {
 			return nil, CreateZoneOut{}, err
 		}

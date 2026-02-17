@@ -8,9 +8,18 @@ type AgentDTO struct {
 	Name string `json:"name"`
 }
 
+// ProjectDTO is the MCP/JSON representation of a project (snake_case for API contract).
+type ProjectDTO struct {
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	RootDir      string   `json:"root_dir"`
+	IgnoredPaths []string `json:"ignored_paths,omitempty"`
+}
+
 // ZoneDTO is the MCP/JSON representation of a zone (snake_case for API contract).
 type ZoneDTO struct {
 	ID             string      `json:"id"`
+	ProjectID      string      `json:"project_id"`
 	Name           string      `json:"name"`
 	Pattern        string      `json:"pattern"`
 	Purpose        string      `json:"purpose"`
@@ -27,6 +36,32 @@ type TreeNodeDTO struct {
 	Children []*TreeNodeDTO `json:"children"`
 }
 
+// ProjectToDTO converts a domain Project to API DTO (exported for HTTP adapter).
+func ProjectToDTO(p *domain.Project) *ProjectDTO {
+	if p == nil {
+		return nil
+	}
+	ignored := p.IgnoredPaths
+	if len(ignored) == 0 {
+		ignored = nil
+	}
+	return &ProjectDTO{
+		ID:           p.ID,
+		Name:         p.Name,
+		RootDir:      p.RootDir,
+		IgnoredPaths: ignored,
+	}
+}
+
+// ProjectsToDTO converts domain projects to DTOs.
+func ProjectsToDTO(projects []*domain.Project) []*ProjectDTO {
+	out := make([]*ProjectDTO, len(projects))
+	for i, p := range projects {
+		out[i] = ProjectToDTO(p)
+	}
+	return out
+}
+
 // ZoneToDTO converts a domain Zone to API DTO (exported for HTTP adapter).
 func ZoneToDTO(z *domain.Zone) *ZoneDTO {
 	if z == nil {
@@ -34,6 +69,7 @@ func ZoneToDTO(z *domain.Zone) *ZoneDTO {
 	}
 	return &ZoneDTO{
 		ID:             z.ID,
+		ProjectID:      z.ProjectID,
 		Name:           z.Name,
 		Pattern:        z.Pattern,
 		Purpose:        z.Purpose,

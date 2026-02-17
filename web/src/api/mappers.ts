@@ -2,8 +2,19 @@
  * Maps API DTOs to UI models and UI params to request DTOs.
  */
 
-import type { ZoneDto, AgentDto, TreeNodeDto } from './dto'
-import type { Zone, TreeNode } from './types'
+import type { ZoneDto, AgentDto, TreeNodeDto, ProjectDto } from './dto'
+import type { Zone, TreeNode, Project } from './types'
+
+/** Map ProjectDto to UI Project */
+export function projectFromDto(dto: ProjectDto | null | undefined): Project | null {
+  if (dto == null) return null
+  return {
+    id: dto.id,
+    name: dto.name ?? '',
+    root_dir: dto.root_dir ?? '',
+    ignored_paths: dto.ignored_paths ?? [],
+  }
+}
 
 /** Map ZoneDto to UI Zone (assigned_agent = first assigned agent name) */
 export function zoneFromDto(dto: ZoneDto | null | undefined): Zone | null {
@@ -12,6 +23,7 @@ export function zoneFromDto(dto: ZoneDto | null | undefined): Zone | null {
     dto.assigned_agents?.length > 0 ? dto.assigned_agents[0].name : ''
   return {
     id: dto.id,
+    project_id: dto.project_id ?? '',
     name: dto.name,
     pattern: dto.pattern ?? '',
     purpose: dto.purpose ?? '',

@@ -19,12 +19,13 @@ func TestListTree_ValidRoot_ReturnsTree(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(root, "cmd", "server"), 0755)
 	_ = os.WriteFile(filepath.Join(root, "go.mod"), []byte("module test\n"), 0644)
 
+	projectStore := memory.NewProjectStore()
 	zoneStore := memory.NewStore()
 	pathMatcher := filesystem.NewMatcher()
 	treeLister := filesystem.NewLister()
-	svc := blueprint.NewService(zoneStore, pathMatcher, treeLister)
+	svc := blueprint.NewService(projectStore, zoneStore, pathMatcher, treeLister, root)
 	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	mcp.RegisterTools(server, root, svc)
+	mcp.RegisterTools(server, svc)
 
 	t1, t2 := sdkmcp.NewInMemoryTransports()
 	if _, err := server.Connect(context.Background(), t1, nil); err != nil {
@@ -74,12 +75,13 @@ func TestListTree_ValidRoot_ReturnsTree(t *testing.T) {
 }
 
 func TestListTree_UnreadableRoot_StructuredError(t *testing.T) {
+	projectStore := memory.NewProjectStore()
 	zoneStore := memory.NewStore()
 	pathMatcher := filesystem.NewMatcher()
 	treeLister := filesystem.NewLister()
-	svc := blueprint.NewService(zoneStore, pathMatcher, treeLister)
+	svc := blueprint.NewService(projectStore, zoneStore, pathMatcher, treeLister, "/nonexistent/path/12345")
 	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	mcp.RegisterTools(server, "/nonexistent/path/12345", svc)
+	mcp.RegisterTools(server, svc)
 
 	t1, t2 := sdkmcp.NewInMemoryTransports()
 	if _, err := server.Connect(context.Background(), t1, nil); err != nil {

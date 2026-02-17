@@ -1,6 +1,10 @@
 import { useMatchingPaths } from '../hooks/useMatchingPaths'
 
-export function RegexPlayground() {
+export interface RegexPlaygroundProps {
+  projectId: string | null
+}
+
+export function RegexPlayground({ projectId }: RegexPlaygroundProps) {
   const {
     pattern,
     setPattern,
@@ -8,46 +12,45 @@ export function RegexPlayground() {
     loading,
     error,
     invalidPattern,
-  } = useMatchingPaths()
+  } = useMatchingPaths(projectId)
 
   return (
-    <section style={{ marginTop: 16 }}>
-      <h2>Regex playground</h2>
-      <p style={{ fontSize: 12, color: '#666' }}>
-        Type a regex to see which paths match (debounced).
-      </p>
-      <input
-        type="text"
-        value={pattern}
-        onChange={(e) => setPattern(e.target.value)}
-        placeholder="e.g. cmd/.* or internal/"
-        style={{
-          width: '100%',
-          maxWidth: 400,
-          padding: 8,
-          fontFamily: 'monospace',
-          border: invalidPattern ? '1px solid #c00' : '1px solid #ccc',
-          borderRadius: 4,
-        }}
-        aria-invalid={invalidPattern}
-      />
-      {invalidPattern && (
-        <p style={{ color: '#c00', fontSize: 12 }}>Invalid pattern</p>
-      )}
-      {error && !invalidPattern && (
-        <p style={{ color: '#c00', fontSize: 12 }}>{error}</p>
-      )}
-      {loading && <p style={{ fontSize: 12, color: '#666' }}>Loading…</p>}
-      <div style={{ marginTop: 8 }}>
-        <strong>Matching paths</strong> ({paths.length}):
-        <ul style={{ fontFamily: 'monospace', fontSize: 12, maxHeight: 200, overflow: 'auto' }}>
-          {paths.length === 0 && !loading && pattern.trim() && !invalidPattern && (
-            <li>No matches</li>
-          )}
-          {paths.map((p) => (
-            <li key={p}>{p}</li>
-          ))}
-        </ul>
+    <section className="card card-border bg-base-100 mt-6">
+      <div className="card-body">
+        <h2 className="card-title text-lg">Regex playground</h2>
+        <p className="text-sm text-base-content/70">
+          Type a regex to see which paths match (debounced).
+        </p>
+        <div className="form-control w-full max-w-md">
+          <input
+            type="text"
+            value={pattern}
+            onChange={(e) => setPattern(e.target.value)}
+            placeholder="e.g. cmd/.* or internal/"
+            className={`input input-bordered w-full font-mono ${invalidPattern ? 'input-error' : ''}`}
+            aria-invalid={invalidPattern}
+          />
+        </div>
+        {invalidPattern && (
+          <p className="text-sm text-error">Invalid pattern</p>
+        )}
+        {error && !invalidPattern && (
+          <div role="alert" className="alert alert-error alert-sm">
+            <span>{error}</span>
+          </div>
+        )}
+        {loading && <p className="text-sm text-base-content/60">Loading…</p>}
+        <div className="mt-2">
+          <strong className="text-base-content">Matching paths</strong> ({paths.length}):
+          <ul className="max-h-48 overflow-auto font-mono text-sm">
+            {paths.length === 0 && !loading && pattern.trim() && !invalidPattern && (
+              <li className="text-base-content/70">No matches</li>
+            )}
+            {paths.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ul>
+        </div>
       </div>
     </section>
   )
