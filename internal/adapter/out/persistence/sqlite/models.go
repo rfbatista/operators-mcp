@@ -4,9 +4,9 @@ import "operators-mcp/internal/domain"
 
 // ProjectModel is the GORM model for domain.Project.
 type ProjectModel struct {
-	ID           string     `gorm:"primaryKey"`
+	ID           string `gorm:"primaryKey"`
 	Name         string
-	RootDir      string     `gorm:"column:root_dir"`
+	RootDir      string      `gorm:"column:root_dir"`
 	IgnoredPaths stringSlice `gorm:"column:ignored_paths"`
 }
 
@@ -32,14 +32,14 @@ func (m *ProjectModel) ToDomain() *domain.Project {
 
 // ZoneModel is the GORM model for domain.Zone.
 type ZoneModel struct {
-	ID             string        `gorm:"primaryKey"`
-	ProjectID      string        `gorm:"column:project_id;index"`
+	ID             string `gorm:"primaryKey"`
+	ProjectID      string `gorm:"column:project_id;index"`
 	Name           string
 	Pattern        string
 	Purpose        string
-	Constraints    stringSlice      `gorm:"column:constraints"`
-	AssignedAgents agentSlice       `gorm:"column:assigned_agents"`
-	ExplicitPaths  stringSlice      `gorm:"column:explicit_paths"`
+	Constraints    stringSlice `gorm:"column:constraints"`
+	AssignedAgents agentSlice  `gorm:"column:assigned_agents"`
+	ExplicitPaths  stringSlice `gorm:"column:explicit_paths"`
 }
 
 // TableName overrides the table name.

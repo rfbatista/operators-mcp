@@ -18,14 +18,14 @@ type ProjectDTO struct {
 
 // ZoneDTO is the MCP/JSON representation of a zone (snake_case for API contract).
 type ZoneDTO struct {
-	ID             string      `json:"id"`
-	ProjectID      string      `json:"project_id"`
-	Name           string      `json:"name"`
-	Pattern        string      `json:"pattern"`
-	Purpose        string      `json:"purpose"`
-	Constraints    []string    `json:"constraints"`
-	AssignedAgents []AgentDTO  `json:"assigned_agents"`
-	ExplicitPaths  []string    `json:"explicit_paths"`
+	ID             string     `json:"id"`
+	ProjectID      string     `json:"project_id"`
+	Name           string     `json:"name"`
+	Pattern        string     `json:"pattern"`
+	Purpose        string     `json:"purpose"`
+	Constraints    []string   `json:"constraints"`
+	AssignedAgents []AgentDTO `json:"assigned_agents"`
+	ExplicitPaths  []string   `json:"explicit_paths"`
 }
 
 // TreeNodeDTO is the MCP/JSON representation of a tree node.

@@ -22,6 +22,7 @@ func NewHandler(svc *blueprint.Service) *Handler {
 
 // Mount registers all API routes on mux under the given prefix (e.g. "/api").
 func (h *Handler) Mount(mux *http.ServeMux, prefix string) {
+	mux.HandleFunc(prefix+"/tools", h.handleListTools)
 	mux.HandleFunc(prefix+"/list_projects", h.handleListProjects)
 	mux.HandleFunc(prefix+"/get_project", h.handleGetProject)
 	mux.HandleFunc(prefix+"/create_project", h.handleCreateProject)
@@ -35,6 +36,15 @@ func (h *Handler) Mount(mux *http.ServeMux, prefix string) {
 	mux.HandleFunc(prefix+"/create_zone", h.handleCreateZone)
 	mux.HandleFunc(prefix+"/update_zone", h.handleUpdateZone)
 	mux.HandleFunc(prefix+"/assign_path_to_zone", h.handleAssignPathToZone)
+}
+
+func (h *Handler) handleListTools(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	tools := mcp.ListTools()
+	writeJSON(w, map[string]any{"tools": tools})
 }
 
 func (h *Handler) handleListProjects(w http.ResponseWriter, r *http.Request) {

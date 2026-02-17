@@ -7,12 +7,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
-	"operators-mcp/internal/adapter/in/mcp"
-	"operators-mcp/internal/adapter/in/ui"
+	"github.com/mark3labs/mcp-go/mcp"
 	"operators-mcp/internal/adapter/out/filesystem"
 	"operators-mcp/internal/adapter/out/persistence/memory"
 	"operators-mcp/internal/application/blueprint"
+	"operators-mcp/tests/testhelper"
 )
 
 // TestBlueprintTools_WithDesignerResource runs server with both ui://designer
@@ -27,30 +26,42 @@ func TestBlueprintTools_WithDesignerResource(t *testing.T) {
 	pathMatcher := filesystem.NewMatcher()
 	treeLister := filesystem.NewLister()
 	svc := blueprint.NewService(projectStore, zoneStore, pathMatcher, treeLister, root)
-	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	mcp.RegisterTools(server, svc)
-	// Also register designer resource so server has both
-	server.AddResource(&sdkmcp.Resource{URI: ui.DesignerURI, Name: "Designer", MIMEType: "text/html"},
-		ui.NewDesignerResourceHandler(false, nil))
-
-	t1, t2 := sdkmcp.NewInMemoryTransports()
-	if _, err := server.Connect(context.Background(), t1, nil); err != nil {
-		t.Fatalf("server connect: %v", err)
-	}
-	client := sdkmcp.NewClient(&sdkmcp.Implementation{Name: "client", Version: "0.0.1"}, nil)
-	session, err := client.Connect(context.Background(), t2, nil)
-	if err != nil {
-		t.Fatalf("client connect: %v", err)
-	}
-	defer session.Close()
+	baseURL, cleanup := testhelper.StartMCPServer(t, svc, false)
+	defer cleanup()
+	c := testhelper.NewTestClient(t, baseURL)
+	defer c.Close()
 
 	ctx := context.Background()
 
+	// Verify tools are visible via tools/list (e.g. for Cursor/IDE discovery).
+	listRes, err := c.ListTools(ctx, mcp.ListToolsRequest{})
+	if err != nil {
+		t.Fatalf("ListTools: %v", err)
+	}
+	wantNames := map[string]bool{
+		"list_projects": true, "get_project": true, "create_project": true, "update_project": true,
+		"add_ignored_path": true, "remove_ignored_path": true,
+		"list_matching_paths": true, "list_tree": true, "list_zones": true,
+		"get_zone": true, "create_zone": true, "update_zone": true, "assign_path_to_zone": true,
+	}
+	if len(listRes.Tools) < len(wantNames) {
+		t.Fatalf("ListTools: got %d tools, want at least %d", len(listRes.Tools), len(wantNames))
+	}
+	for _, tool := range listRes.Tools {
+		if !wantNames[tool.Name] {
+			continue
+		}
+		delete(wantNames, tool.Name)
+	}
+	if len(wantNames) != 0 {
+		t.Errorf("ListTools: missing tools: %v", wantNames)
+	}
+
 	// Call list_tree
-	res, err := session.CallTool(ctx, &sdkmcp.CallToolParams{
-		Name:      "list_tree",
-		Arguments: map[string]any{},
-	})
+	callReq := mcp.CallToolRequest{}
+	callReq.Params.Name = "list_tree"
+	callReq.Params.Arguments = map[string]any{}
+	res, err := c.CallTool(ctx, callReq)
 	if err != nil {
 		t.Fatalf("list_tree: %v", err)
 	}
@@ -60,10 +71,7 @@ func TestBlueprintTools_WithDesignerResource(t *testing.T) {
 	if len(res.Content) == 0 {
 		t.Fatal("expected list_tree content")
 	}
-	text := ""
-	if tc, ok := res.Content[0].(*sdkmcp.TextContent); ok {
-		text = tc.Text
-	}
+	text := testhelper.ToolResultText(res.Content[0])
 	var treeOut struct {
 		Tree struct {
 			Name string `json:"name"`
@@ -82,10 +90,9 @@ func TestBlueprintTools_WithDesignerResource(t *testing.T) {
 		t.Fatalf("CreateProject: %v", err)
 	}
 	// Call list_zones
-	res, err = session.CallTool(ctx, &sdkmcp.CallToolParams{
-		Name:      "list_zones",
-		Arguments: map[string]any{"project_id": p.ID},
-	})
+	callReq.Params.Name = "list_zones"
+	callReq.Params.Arguments = map[string]any{"project_id": p.ID}
+	res, err = c.CallTool(ctx, callReq)
 	if err != nil {
 		t.Fatalf("list_zones: %v", err)
 	}

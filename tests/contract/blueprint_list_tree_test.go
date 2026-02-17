@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
-	"operators-mcp/internal/adapter/in/mcp"
+	"github.com/mark3labs/mcp-go/mcp"
 	"operators-mcp/internal/adapter/out/filesystem"
 	"operators-mcp/internal/adapter/out/persistence/memory"
 	"operators-mcp/internal/application/blueprint"
+	"operators-mcp/tests/testhelper"
 )
 
 func TestListTree_ValidRoot_ReturnsTree(t *testing.T) {
@@ -24,25 +24,16 @@ func TestListTree_ValidRoot_ReturnsTree(t *testing.T) {
 	pathMatcher := filesystem.NewMatcher()
 	treeLister := filesystem.NewLister()
 	svc := blueprint.NewService(projectStore, zoneStore, pathMatcher, treeLister, root)
-	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	mcp.RegisterTools(server, svc)
-
-	t1, t2 := sdkmcp.NewInMemoryTransports()
-	if _, err := server.Connect(context.Background(), t1, nil); err != nil {
-		t.Fatalf("server connect: %v", err)
-	}
-	client := sdkmcp.NewClient(&sdkmcp.Implementation{Name: "client", Version: "0.0.1"}, nil)
-	session, err := client.Connect(context.Background(), t2, nil)
-	if err != nil {
-		t.Fatalf("client connect: %v", err)
-	}
-	defer session.Close()
+	baseURL, cleanup := testhelper.StartMCPServer(t, svc, false)
+	defer cleanup()
+	c := testhelper.NewTestClient(t, baseURL)
+	defer c.Close()
 
 	ctx := context.Background()
-	res, err := session.CallTool(ctx, &sdkmcp.CallToolParams{
-		Name:      "list_tree",
-		Arguments: map[string]any{},
-	})
+	callReq := mcp.CallToolRequest{}
+	callReq.Params.Name = "list_tree"
+	callReq.Params.Arguments = map[string]any{}
+	res, err := c.CallTool(ctx, callReq)
 	if err != nil {
 		t.Fatalf("CallTool: %v", err)
 	}
@@ -52,6 +43,7 @@ func TestListTree_ValidRoot_ReturnsTree(t *testing.T) {
 	if len(res.Content) == 0 {
 		t.Fatal("expected content")
 	}
+	text := testhelper.ToolResultText(res.Content[0])
 	var out struct {
 		Tree struct {
 			Path     string `json:"path"`
@@ -60,7 +52,7 @@ func TestListTree_ValidRoot_ReturnsTree(t *testing.T) {
 			Children []any  `json:"children"`
 		} `json:"tree"`
 	}
-	if err := json.Unmarshal([]byte(contentText(res.Content[0])), &out); err != nil {
+	if err := json.Unmarshal([]byte(text), &out); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	if out.Tree.Name != "." {
@@ -80,25 +72,16 @@ func TestListTree_UnreadableRoot_StructuredError(t *testing.T) {
 	pathMatcher := filesystem.NewMatcher()
 	treeLister := filesystem.NewLister()
 	svc := blueprint.NewService(projectStore, zoneStore, pathMatcher, treeLister, "/nonexistent/path/12345")
-	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	mcp.RegisterTools(server, svc)
-
-	t1, t2 := sdkmcp.NewInMemoryTransports()
-	if _, err := server.Connect(context.Background(), t1, nil); err != nil {
-		t.Fatalf("server connect: %v", err)
-	}
-	client := sdkmcp.NewClient(&sdkmcp.Implementation{Name: "client", Version: "0.0.1"}, nil)
-	session, err := client.Connect(context.Background(), t2, nil)
-	if err != nil {
-		t.Fatalf("client connect: %v", err)
-	}
-	defer session.Close()
+	baseURL, cleanup := testhelper.StartMCPServer(t, svc, false)
+	defer cleanup()
+	c := testhelper.NewTestClient(t, baseURL)
+	defer c.Close()
 
 	ctx := context.Background()
-	res, err := session.CallTool(ctx, &sdkmcp.CallToolParams{
-		Name:      "list_tree",
-		Arguments: map[string]any{},
-	})
+	callReq := mcp.CallToolRequest{}
+	callReq.Params.Name = "list_tree"
+	callReq.Params.Arguments = map[string]any{}
+	res, err := c.CallTool(ctx, callReq)
 	if err != nil {
 		t.Fatalf("CallTool: %v", err)
 	}

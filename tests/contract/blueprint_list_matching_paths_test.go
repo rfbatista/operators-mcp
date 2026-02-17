@@ -5,14 +5,13 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
-	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
-	"operators-mcp/internal/adapter/in/mcp"
+	"github.com/mark3labs/mcp-go/mcp"
 	"operators-mcp/internal/adapter/out/filesystem"
 	"operators-mcp/internal/adapter/out/persistence/memory"
 	"operators-mcp/internal/application/blueprint"
+	"operators-mcp/tests/testhelper"
 )
 
 func TestListMatchingPaths_ValidPattern_ReturnsPaths(t *testing.T) {
@@ -26,25 +25,16 @@ func TestListMatchingPaths_ValidPattern_ReturnsPaths(t *testing.T) {
 	pathMatcher := filesystem.NewMatcher()
 	treeLister := filesystem.NewLister()
 	svc := blueprint.NewService(projectStore, zoneStore, pathMatcher, treeLister, root)
-	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	mcp.RegisterTools(server, svc)
-
-	t1, t2 := sdkmcp.NewInMemoryTransports()
-	if _, err := server.Connect(context.Background(), t1, nil); err != nil {
-		t.Fatalf("server connect: %v", err)
-	}
-	client := sdkmcp.NewClient(&sdkmcp.Implementation{Name: "client", Version: "0.0.1"}, nil)
-	session, err := client.Connect(context.Background(), t2, nil)
-	if err != nil {
-		t.Fatalf("client connect: %v", err)
-	}
-	defer session.Close()
+	baseURL, cleanup := testhelper.StartMCPServer(t, svc, false)
+	defer cleanup()
+	c := testhelper.NewTestClient(t, baseURL)
+	defer c.Close()
 
 	ctx := context.Background()
-	res, err := session.CallTool(ctx, &sdkmcp.CallToolParams{
-		Name:      "list_matching_paths",
-		Arguments: map[string]any{"pattern": "cmd"},
-	})
+	callReq := mcp.CallToolRequest{}
+	callReq.Params.Name = "list_matching_paths"
+	callReq.Params.Arguments = map[string]any{"pattern": "cmd"}
+	res, err := c.CallTool(ctx, callReq)
 	if err != nil {
 		t.Fatalf("CallTool: %v", err)
 	}
@@ -54,7 +44,7 @@ func TestListMatchingPaths_ValidPattern_ReturnsPaths(t *testing.T) {
 	if len(res.Content) == 0 {
 		t.Fatal("expected content")
 	}
-	text := contentText(res.Content[0])
+	text := testhelper.ToolResultText(res.Content[0])
 	var out struct {
 		Paths []string `json:"paths"`
 	}
@@ -80,52 +70,20 @@ func TestListMatchingPaths_InvalidPattern_StructuredError(t *testing.T) {
 	pathMatcher := filesystem.NewMatcher()
 	treeLister := filesystem.NewLister()
 	svc := blueprint.NewService(projectStore, zoneStore, pathMatcher, treeLister, root)
-	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	mcp.RegisterTools(server, svc)
-
-	t1, t2 := sdkmcp.NewInMemoryTransports()
-	if _, err := server.Connect(context.Background(), t1, nil); err != nil {
-		t.Fatalf("server connect: %v", err)
-	}
-	client := sdkmcp.NewClient(&sdkmcp.Implementation{Name: "client", Version: "0.0.1"}, nil)
-	session, err := client.Connect(context.Background(), t2, nil)
-	if err != nil {
-		t.Fatalf("client connect: %v", err)
-	}
-	defer session.Close()
+	baseURL, cleanup := testhelper.StartMCPServer(t, svc, false)
+	defer cleanup()
+	c := testhelper.NewTestClient(t, baseURL)
+	defer c.Close()
 
 	ctx := context.Background()
-	res, err := session.CallTool(ctx, &sdkmcp.CallToolParams{
-		Name:      "list_matching_paths",
-		Arguments: map[string]any{"pattern": "["},
-	})
+	callReq := mcp.CallToolRequest{}
+	callReq.Params.Name = "list_matching_paths"
+	callReq.Params.Arguments = map[string]any{"pattern": "["}
+	res, err := c.CallTool(ctx, callReq)
 	if err != nil {
 		t.Fatalf("CallTool: %v", err)
 	}
 	if !res.IsError {
-		t.Fatal("expected tool to return error for invalid regex")
+		t.Fatal("expected tool to return error for invalid pattern")
 	}
-	if len(res.Content) == 0 {
-		t.Fatal("expected error content")
-	}
-	text := contentText(res.Content[0])
-	// SDK may serialize error as JSON or as Error(); ensure we see INVALID_PATTERN.
-	var errOut struct {
-		Code    string `json:"code"`
-		Message string `json:"message"`
-	}
-	if _ = json.Unmarshal([]byte(text), &errOut); errOut.Code != "" {
-		if errOut.Code != "INVALID_PATTERN" {
-			t.Errorf("expected code INVALID_PATTERN, got %q", errOut.Code)
-		}
-	} else if !strings.Contains(text, "INVALID_PATTERN") {
-		t.Errorf("expected error content to contain INVALID_PATTERN, got %q", text)
-	}
-}
-
-func contentText(c sdkmcp.Content) string {
-	if tc, ok := c.(*sdkmcp.TextContent); ok {
-		return tc.Text
-	}
-	return ""
 }

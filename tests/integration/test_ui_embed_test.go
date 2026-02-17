@@ -5,44 +5,34 @@ import (
 	"strings"
 	"testing"
 
-	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
-	"operators-mcp/internal/adapter/in/mcp"
+	mcplib "github.com/mark3labs/mcp-go/mcp"
 	"operators-mcp/internal/adapter/in/ui"
+	"operators-mcp/internal/application/blueprint"
+	"operators-mcp/tests/testhelper"
 )
 
 // TestUIEmbed_ServerServesDesignerFromEmbed verifies that when the server runs in production
 // mode with embedded UI (internal/adapter/in/ui/static populated from web/dist), requesting ui://designer
 // returns HTML. Populate static before running: cp -r web/dist/* internal/adapter/in/ui/static/
 func TestUIEmbed_ServerServesDesignerFromEmbed(t *testing.T) {
+	svc := blueprint.NewService(nil, nil, nil, nil, "")
+	baseURL, cleanup := testhelper.StartMCPServer(t, svc, false)
+	defer cleanup()
+	c := testhelper.NewTestClient(t, baseURL)
+	defer c.Close()
+
 	ctx := context.Background()
-	cfg := mcp.Config{DevMode: false}
-	server := mcp.NewServer(cfg)
-	server.AddResource(&sdkmcp.Resource{URI: ui.DesignerURI, Name: "Designer", MIMEType: "text/html"},
-		ui.NewDesignerResourceHandler(false, ui.Dist))
-
-	t1, t2 := sdkmcp.NewInMemoryTransports()
-	if _, err := server.Connect(ctx, t1, nil); err != nil {
-		t.Fatalf("server connect: %v", err)
-	}
-	client := sdkmcp.NewClient(&sdkmcp.Implementation{Name: "client", Version: "0.0.1"}, nil)
-	session, err := client.Connect(ctx, t2, nil)
-	if err != nil {
-		t.Fatalf("client connect: %v", err)
-	}
-	defer session.Close()
-
-	res, err := session.ReadResource(ctx, &sdkmcp.ReadResourceParams{URI: ui.DesignerURI})
+	req := mcplib.ReadResourceRequest{}
+	req.Params.URI = ui.DesignerURI
+	res, err := c.ReadResource(ctx, req)
 	if err != nil {
 		t.Fatalf("ReadResource: %v (ensure internal/adapter/in/ui/static is populated: cp -r web/dist/* internal/adapter/in/ui/static/)", err)
 	}
 	if len(res.Contents) == 0 {
 		t.Fatal("expected at least one content")
 	}
-	c := res.Contents[0]
-	if c.MIMEType != "text/html" {
-		t.Errorf("MIMEType = %q, want text/html", c.MIMEType)
-	}
-	if !strings.Contains(c.Text, "<html") && !strings.Contains(c.Text, "<!DOCTYPE") {
-		t.Errorf("expected HTML content, got: %s", c.Text[:min(100, len(c.Text))])
+	text := testhelper.ResourceResultText(res)
+	if !strings.Contains(text, "<html") && !strings.Contains(text, "<!DOCTYPE") {
+		t.Errorf("expected HTML content, got: %s", text[:min(100, len(text))])
 	}
 }

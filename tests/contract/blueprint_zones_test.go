@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"testing"
 
-	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
-	"operators-mcp/internal/adapter/in/mcp"
+	"github.com/mark3labs/mcp-go/mcp"
 	"operators-mcp/internal/adapter/out/filesystem"
 	"operators-mcp/internal/adapter/out/persistence/memory"
 	"operators-mcp/internal/application/blueprint"
+	"operators-mcp/tests/testhelper"
 )
 
 func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
@@ -19,27 +19,18 @@ func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
 	pathMatcher := filesystem.NewMatcher()
 	treeLister := filesystem.NewLister()
 	svc := blueprint.NewService(projectStore, zoneStore, pathMatcher, treeLister, root)
-	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	mcp.RegisterTools(server, svc)
-
-	t1, t2 := sdkmcp.NewInMemoryTransports()
-	if _, err := server.Connect(context.Background(), t1, nil); err != nil {
-		t.Fatalf("server connect: %v", err)
-	}
-	client := sdkmcp.NewClient(&sdkmcp.Implementation{Name: "client", Version: "0.0.1"}, nil)
-	session, err := client.Connect(context.Background(), t2, nil)
-	if err != nil {
-		t.Fatalf("client connect: %v", err)
-	}
-	defer session.Close()
+	baseURL, cleanup := testhelper.StartMCPServer(t, svc, false)
+	defer cleanup()
+	c := testhelper.NewTestClient(t, baseURL)
+	defer c.Close()
 
 	ctx := context.Background()
 
 	// create_project first
-	res, err := session.CallTool(ctx, &sdkmcp.CallToolParams{
-		Name:      "create_project",
-		Arguments: map[string]any{"name": "testproj", "root_dir": root},
-	})
+	callReq := mcp.CallToolRequest{}
+	callReq.Params.Name = "create_project"
+	callReq.Params.Arguments = map[string]any{"name": "testproj", "root_dir": root}
+	res, err := c.CallTool(ctx, callReq)
 	if err != nil {
 		t.Fatalf("create_project: %v", err)
 	}
@@ -51,16 +42,15 @@ func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
 			ID string `json:"id"`
 		} `json:"project"`
 	}
-	if err := json.Unmarshal([]byte(contentText(res.Content[0])), &projOut); err != nil {
+	if err := json.Unmarshal([]byte(testhelper.ToolResultText(res.Content[0])), &projOut); err != nil {
 		t.Fatalf("unmarshal create_project: %v", err)
 	}
 	projectID := projOut.Project.ID
 
 	// list_zones empty
-	res, err = session.CallTool(ctx, &sdkmcp.CallToolParams{
-		Name:      "list_zones",
-		Arguments: map[string]any{"project_id": projectID},
-	})
+	callReq.Params.Name = "list_zones"
+	callReq.Params.Arguments = map[string]any{"project_id": projectID}
+	res, err = c.CallTool(ctx, callReq)
 	if err != nil {
 		t.Fatalf("list_zones: %v", err)
 	}
@@ -70,7 +60,7 @@ func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
 	var listOut struct {
 		Zones []map[string]any `json:"zones"`
 	}
-	if err := json.Unmarshal([]byte(contentText(res.Content[0])), &listOut); err != nil {
+	if err := json.Unmarshal([]byte(testhelper.ToolResultText(res.Content[0])), &listOut); err != nil {
 		t.Fatalf("unmarshal list_zones: %v", err)
 	}
 	if len(listOut.Zones) != 0 {
@@ -78,15 +68,14 @@ func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
 	}
 
 	// create_zone
-	res, err = session.CallTool(ctx, &sdkmcp.CallToolParams{
-		Name: "create_zone",
-		Arguments: map[string]any{
-			"project_id": projectID,
-			"name":       "backend",
-			"pattern":    "cmd/.*",
-			"purpose":    "Server and CLI",
-		},
-	})
+	callReq.Params.Name = "create_zone"
+	callReq.Params.Arguments = map[string]any{
+		"project_id": projectID,
+		"name":       "backend",
+		"pattern":    "cmd/.*",
+		"purpose":    "Server and CLI",
+	}
+	res, err = c.CallTool(ctx, callReq)
 	if err != nil {
 		t.Fatalf("create_zone: %v", err)
 	}
@@ -100,7 +89,7 @@ func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
 			Pattern string `json:"pattern"`
 		} `json:"zone"`
 	}
-	if err := json.Unmarshal([]byte(contentText(res.Content[0])), &createOut); err != nil {
+	if err := json.Unmarshal([]byte(testhelper.ToolResultText(res.Content[0])), &createOut); err != nil {
 		t.Fatalf("unmarshal create_zone: %v", err)
 	}
 	if createOut.Zone.ID == "" {
@@ -112,10 +101,9 @@ func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
 	zoneID := createOut.Zone.ID
 
 	// get_zone
-	res, err = session.CallTool(ctx, &sdkmcp.CallToolParams{
-		Name:      "get_zone",
-		Arguments: map[string]any{"zone_id": zoneID},
-	})
+	callReq.Params.Name = "get_zone"
+	callReq.Params.Arguments = map[string]any{"zone_id": zoneID}
+	res, err = c.CallTool(ctx, callReq)
 	if err != nil {
 		t.Fatalf("get_zone: %v", err)
 	}
@@ -124,11 +112,11 @@ func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
 	}
 	var getOut struct {
 		Zone struct {
-			ID      string `json:"id"`
-			Name    string `json:"name"`
+			ID   string `json:"id"`
+			Name string `json:"name"`
 		} `json:"zone"`
 	}
-	if err := json.Unmarshal([]byte(contentText(res.Content[0])), &getOut); err != nil {
+	if err := json.Unmarshal([]byte(testhelper.ToolResultText(res.Content[0])), &getOut); err != nil {
 		t.Fatalf("unmarshal get_zone: %v", err)
 	}
 	if getOut.Zone.Name != "backend" {
@@ -136,13 +124,9 @@ func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
 	}
 
 	// update_zone
-	res, err = session.CallTool(ctx, &sdkmcp.CallToolParams{
-		Name: "update_zone",
-		Arguments: map[string]any{
-			"zone_id": zoneID,
-			"name":    "backend-updated",
-		},
-	})
+	callReq.Params.Name = "update_zone"
+	callReq.Params.Arguments = map[string]any{"zone_id": zoneID, "name": "backend-updated"}
+	res, err = c.CallTool(ctx, callReq)
 	if err != nil {
 		t.Fatalf("update_zone: %v", err)
 	}
@@ -151,10 +135,9 @@ func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
 	}
 
 	// assign_path_to_zone
-	res, err = session.CallTool(ctx, &sdkmcp.CallToolParams{
-		Name:      "assign_path_to_zone",
-		Arguments: map[string]any{"zone_id": zoneID, "path": "internal/blueprint"},
-	})
+	callReq.Params.Name = "assign_path_to_zone"
+	callReq.Params.Arguments = map[string]any{"zone_id": zoneID, "path": "internal/blueprint"}
+	res, err = c.CallTool(ctx, callReq)
 	if err != nil {
 		t.Fatalf("assign_path_to_zone: %v", err)
 	}
@@ -166,7 +149,7 @@ func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
 			ExplicitPaths []string `json:"explicit_paths"`
 		} `json:"zone"`
 	}
-	if err := json.Unmarshal([]byte(contentText(res.Content[0])), &assignOut); err != nil {
+	if err := json.Unmarshal([]byte(testhelper.ToolResultText(res.Content[0])), &assignOut); err != nil {
 		t.Fatalf("unmarshal assign: %v", err)
 	}
 	if len(assignOut.Zone.ExplicitPaths) != 1 || assignOut.Zone.ExplicitPaths[0] != "internal/blueprint" {
@@ -174,14 +157,13 @@ func TestZones_ListCreateGetUpdateAssignPath(t *testing.T) {
 	}
 
 	// list_zones now has one
-	res, err = session.CallTool(ctx, &sdkmcp.CallToolParams{
-		Name:      "list_zones",
-		Arguments: map[string]any{"project_id": projectID},
-	})
+	callReq.Params.Name = "list_zones"
+	callReq.Params.Arguments = map[string]any{"project_id": projectID}
+	res, err = c.CallTool(ctx, callReq)
 	if err != nil {
 		t.Fatalf("list_zones: %v", err)
 	}
-	if err := json.Unmarshal([]byte(contentText(res.Content[0])), &listOut); err != nil {
+	if err := json.Unmarshal([]byte(testhelper.ToolResultText(res.Content[0])), &listOut); err != nil {
 		t.Fatalf("unmarshal list_zones: %v", err)
 	}
 	if len(listOut.Zones) != 1 {
@@ -196,23 +178,13 @@ func TestGetZone_NotFound_StructuredError(t *testing.T) {
 	pathMatcher := filesystem.NewMatcher()
 	treeLister := filesystem.NewLister()
 	svc := blueprint.NewService(projectStore, zoneStore, pathMatcher, treeLister, root)
-	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	mcp.RegisterTools(server, svc)
+	baseURL, cleanup := testhelper.StartMCPServer(t, svc, false)
+	defer cleanup()
+	c := testhelper.NewTestClient(t, baseURL)
+	defer c.Close()
 
-	t1, t2 := sdkmcp.NewInMemoryTransports()
-	if _, err := server.Connect(context.Background(), t1, nil); err != nil {
-		t.Fatalf("server connect: %v", err)
-	}
-	client := sdkmcp.NewClient(&sdkmcp.Implementation{Name: "client", Version: "0.0.1"}, nil)
-	session, err := client.Connect(context.Background(), t2, nil)
-	if err != nil {
-		t.Fatalf("client connect: %v", err)
-	}
-	defer session.Close()
-
-	res, err := session.CallTool(context.Background(), &sdkmcp.CallToolParams{
-		Name:      "get_zone",
-		Arguments: map[string]any{"zone_id": "nonexistent"},
+	res, err := c.CallTool(context.Background(), mcp.CallToolRequest{
+		Params: mcp.CallToolParams{Name: "get_zone", Arguments: map[string]any{"zone_id": "nonexistent"}},
 	})
 	if err != nil {
 		t.Fatalf("CallTool: %v", err)

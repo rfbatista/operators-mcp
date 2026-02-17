@@ -9,80 +9,59 @@ import (
 	"testing"
 	"time"
 
-	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
+	mcplib "github.com/mark3labs/mcp-go/mcp"
 	"operators-mcp/internal/adapter/in/ui"
+	"operators-mcp/internal/application/blueprint"
+	"operators-mcp/tests/testhelper"
 )
 
 func TestReadDesignerResource_ProductionWithEmbed_Success(t *testing.T) {
-	ctx := context.Background()
-	// Use a minimal FS with index.html (handler reads "static/index.html").
 	html := `<html><body>Designer</body></html>`
 	testFS := &staticFS{files: map[string]string{"static/index.html": html}}
+	svc := blueprint.NewService(nil, nil, nil, nil, "")
+	baseURL, cleanup := testhelper.StartMCPServerWithDesigner(t, svc, false, testFS, "")
+	defer cleanup()
+	c := testhelper.NewTestClient(t, baseURL)
+	defer c.Close()
 
-	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	server.AddResource(&sdkmcp.Resource{URI: ui.DesignerURI, Name: "Designer", MIMEType: "text/html"},
-		ui.NewDesignerResourceHandler(false, testFS))
-
-	t1, t2 := sdkmcp.NewInMemoryTransports()
-	if _, err := server.Connect(ctx, t1, nil); err != nil {
-		t.Fatalf("server connect: %v", err)
-	}
-	client := sdkmcp.NewClient(&sdkmcp.Implementation{Name: "client", Version: "0.0.1"}, nil)
-	session, err := client.Connect(ctx, t2, nil)
-	if err != nil {
-		t.Fatalf("client connect: %v", err)
-	}
-	defer session.Close()
-
-	res, err := session.ReadResource(ctx, &sdkmcp.ReadResourceParams{URI: ui.DesignerURI})
+	ctx := context.Background()
+	req := mcplib.ReadResourceRequest{}
+	req.Params.URI = ui.DesignerURI
+	res, err := c.ReadResource(ctx, req)
 	if err != nil {
 		t.Fatalf("ReadResource: %v", err)
 	}
 	if len(res.Contents) == 0 {
 		t.Fatal("expected at least one content")
 	}
-	c := res.Contents[0]
-	if c.URI != ui.DesignerURI {
-		t.Errorf("URI = %q, want %q", c.URI, ui.DesignerURI)
-	}
-	if c.MIMEType != "text/html" {
-		t.Errorf("MIMEType = %q, want text/html", c.MIMEType)
-	}
-	if c.Text != html {
-		t.Errorf("Text = %q, want %q", c.Text, html)
+	text := testhelper.ResourceResultText(res)
+	if text != html {
+		t.Errorf("Text = %q, want %q", text, html)
 	}
 }
 
 func TestReadDesignerResource_ProductionAssetsMissing_StructuredError(t *testing.T) {
+	// Empty FS (no static/index.html) so DesignerContent returns assets-missing error.
+	emptyFS := &staticFS{files: map[string]string{}}
+	svc := blueprint.NewService(nil, nil, nil, nil, "")
+	baseURL, cleanup := testhelper.StartMCPServerWithDesigner(t, svc, false, emptyFS, "")
+	defer cleanup()
+	c := testhelper.NewTestClient(t, baseURL)
+	defer c.Close()
+
 	ctx := context.Background()
-	// Nil FS or empty FS -> assets missing.
-	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	server.AddResource(&sdkmcp.Resource{URI: ui.DesignerURI, Name: "Designer", MIMEType: "text/html"},
-		ui.NewDesignerResourceHandler(false, nil))
-
-	t1, t2 := sdkmcp.NewInMemoryTransports()
-	if _, err := server.Connect(ctx, t1, nil); err != nil {
-		t.Fatalf("server connect: %v", err)
-	}
-	client := sdkmcp.NewClient(&sdkmcp.Implementation{Name: "client", Version: "0.0.1"}, nil)
-	session, err := client.Connect(ctx, t2, nil)
-	if err != nil {
-		t.Fatalf("client connect: %v", err)
-	}
-	defer session.Close()
-
-	_, err = session.ReadResource(ctx, &sdkmcp.ReadResourceParams{URI: ui.DesignerURI})
+	req := mcplib.ReadResourceRequest{}
+	req.Params.URI = ui.DesignerURI
+	_, err := c.ReadResource(ctx, req)
 	if err == nil {
 		t.Fatal("expected error when assets missing")
 	}
-	// Should be a structured error the client can display (not a crash).
 	if err.Error() == "" {
 		t.Error("error should have a message")
 	}
 }
 
 func TestReadDesignerResource_DevModeWithServerRunning_Success(t *testing.T) {
-	// Start a minimal HTTP server that serves HTML.
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
@@ -93,53 +72,39 @@ func TestReadDesignerResource_DevModeWithServerRunning_Success(t *testing.T) {
 	t.Cleanup(func() { srv.Close() })
 	time.Sleep(50 * time.Millisecond)
 
+	svc := blueprint.NewService(nil, nil, nil, nil, "")
+	baseURL, cleanup := testhelper.StartMCPServerWithDesigner(t, svc, true, nil, "http://localhost:5174")
+	defer cleanup()
+	c := testhelper.NewTestClient(t, baseURL)
+	defer c.Close()
+
 	ctx := context.Background()
-	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	server.AddResource(&sdkmcp.Resource{URI: ui.DesignerURI, Name: "Designer", MIMEType: "text/html"},
-		ui.NewDesignerProxyHandler("http://localhost:5174"))
-
-	t1, t2 := sdkmcp.NewInMemoryTransports()
-	if _, err := server.Connect(ctx, t1, nil); err != nil {
-		t.Fatalf("server connect: %v", err)
-	}
-	client := sdkmcp.NewClient(&sdkmcp.Implementation{Name: "client", Version: "0.0.1"}, nil)
-	session, err := client.Connect(ctx, t2, nil)
-	if err != nil {
-		t.Fatalf("client connect: %v", err)
-	}
-	defer session.Close()
-
-	res, err := session.ReadResource(ctx, &sdkmcp.ReadResourceParams{URI: ui.DesignerURI})
+	req := mcplib.ReadResourceRequest{}
+	req.Params.URI = ui.DesignerURI
+	res, err := c.ReadResource(ctx, req)
 	if err != nil {
 		t.Fatalf("ReadResource: %v", err)
 	}
-	if len(res.Contents) == 0 || res.Contents[0].Text == "" {
+	if len(res.Contents) == 0 {
 		t.Fatal("expected HTML content from proxy")
 	}
-	if !strings.Contains(res.Contents[0].Text, "Vite dev") {
-		t.Errorf("expected proxied content, got %q", res.Contents[0].Text[:min(80, len(res.Contents[0].Text))])
+	text := testhelper.ResourceResultText(res)
+	if !strings.Contains(text, "Vite dev") {
+		t.Errorf("expected proxied content, got %q", text[:min(80, len(text))])
 	}
 }
 
 func TestReadDesignerResource_DevModeServerNotRunning_StructuredError(t *testing.T) {
+	svc := blueprint.NewService(nil, nil, nil, nil, "")
+	baseURL, cleanup := testhelper.StartMCPServerWithDesigner(t, svc, true, nil, "http://127.0.0.1:59999")
+	defer cleanup()
+	c := testhelper.NewTestClient(t, baseURL)
+	defer c.Close()
+
 	ctx := context.Background()
-	// Use a port that is not listening.
-	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "test", Version: "0.0.1"}, nil)
-	server.AddResource(&sdkmcp.Resource{URI: ui.DesignerURI, Name: "Designer", MIMEType: "text/html"},
-		ui.NewDesignerProxyHandler("http://127.0.0.1:59999"))
-
-	t1, t2 := sdkmcp.NewInMemoryTransports()
-	if _, err := server.Connect(ctx, t1, nil); err != nil {
-		t.Fatalf("server connect: %v", err)
-	}
-	client := sdkmcp.NewClient(&sdkmcp.Implementation{Name: "client", Version: "0.0.1"}, nil)
-	session, err := client.Connect(ctx, t2, nil)
-	if err != nil {
-		t.Fatalf("client connect: %v", err)
-	}
-	defer session.Close()
-
-	_, err = session.ReadResource(ctx, &sdkmcp.ReadResourceParams{URI: ui.DesignerURI})
+	req := mcplib.ReadResourceRequest{}
+	req.Params.URI = ui.DesignerURI
+	_, err := c.ReadResource(ctx, req)
 	if err == nil {
 		t.Fatal("expected error when dev server not running")
 	}

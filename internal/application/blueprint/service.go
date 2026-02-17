@@ -8,11 +8,11 @@ import (
 // Service implements blueprint use cases by delegating to the outbound ports.
 // It is the application (use-case) layer in hexagonal architecture.
 type Service struct {
-	Projects     ports.ProjectRepository
-	Zones        ports.ZoneRepository
-	PathMatcher  ports.PathMatcher
-	TreeLister   ports.TreeLister
-	DefaultRoot  string
+	Projects    ports.ProjectRepository
+	Zones       ports.ZoneRepository
+	PathMatcher ports.PathMatcher
+	TreeLister  ports.TreeLister
+	DefaultRoot string
 }
 
 // NewService returns a blueprint application service with the given ports.

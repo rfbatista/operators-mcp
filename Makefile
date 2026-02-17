@@ -11,7 +11,7 @@ UI_STATIC := internal/adapter/in/ui/static
 help:
 	@echo "operators-mcp — targets:"
 	@echo "  make build       — build web UI, copy to embed dir, build Go binary ($(BINARY))"
-	@echo "  make run         — run production server (requires 'make build' first)"
+	@echo "  make run         — run MCP server (:8081) + HTTP server (:8080 for UI and API). Requires 'make build' first."
 	@echo "  make dev-server  — run Go server with --dev (run 'make web-dev' in another terminal for hot-reload)"
 	@echo "  make web-dev     — start Vite dev server (port 5173)"
 	@echo "  make air         — run with Air: rebuild on Go or React changes, UI at :8080 (requires: go install github.com/air-verse/air@latest)"
@@ -50,7 +50,7 @@ build: web-build copy-ui
 	go build -o $(BINARY) ./cmd/server
 	@echo "Built $(BINARY) (production, UI embedded)"
 
-# Run production server
+# Run HTTP server (UI at /, API at /api, MCP at /mcp).
 run: build
 	./$(BINARY)
 

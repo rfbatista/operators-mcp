@@ -10,7 +10,7 @@ tmp_dir = "tmp"
 cmd = "cd web && npm run build && cd .. && mkdir -p internal/adapter/in/ui/static && cp -r web/dist/* internal/adapter/in/ui/static/ && go build -o ./tmp/main ./cmd/server"
 bin = "./tmp/main"
 # Serve the React UI at http://localhost:8080
-args_bin = ["-http"]
+args_bin = []
 # Watch Go and React source (exclude generated dirs to avoid rebuild loops)
 include_ext = ["go", "html", "ts", "tsx", "css", "json"]
 include_dir = ["cmd", "internal", "web/src", "web"]
